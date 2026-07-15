@@ -16,7 +16,7 @@ When a phase document and the vision doc conflict on what to build today, **the 
 
 ## Agent instructions
 
-At the conclusion of every phase (i.e. when a phase document's acceptance criteria are met), document exactly what was accomplished in `progress_update.md` at the repo root — which acceptance criteria were met, any deviations from the phase doc, and what was deliberately deferred. Append a new dated section per phase rather than overwriting prior entries.
+At the conclusion of every phase (i.e. when a phase document's acceptance criteria are met), document exactly what was accomplished in `docs/progress_update.md` at the repo root — which acceptance criteria were met, any deviations from the phase doc, and what was deliberately deferred. Append a new dated section per phase rather than overwriting prior entries.
 
 ## Commands
 
