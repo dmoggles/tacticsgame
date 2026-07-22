@@ -3,6 +3,7 @@ from __future__ import annotations
 import pygame
 
 from .. import config
+from ..engine import class_track_library
 from ..engine.battle import Battle
 from ..models.grid import Grid
 from ..models.hero import Hero
@@ -239,6 +240,7 @@ def _draw_hero_card(
         "",
         "Abilities:",
     ]
+    class_tracks = class_track_library.load_class_tracks()
     for ability in hero.abilities:
         range_label = (
             f"{ability.min_range}-{ability.range}" if ability.min_range else f"{ability.range}"
@@ -247,9 +249,9 @@ def _draw_hero_card(
         if ability.cooldown:
             remaining = hero.cooldowns.get(ability.name, 0)
             cd_label = f", cd {remaining}/{ability.cooldown}"
-        lines.append(
-            f"  {ability.name} ({ability.class_track.value}, rng {range_label}{cd_label})"
-        )
+        track = class_tracks.get(ability.name)
+        track_label = track.value if track is not None else "?"
+        lines.append(f"  {ability.name} ({track_label}, rng {range_label}{cd_label})")
     lines.append("")
     lines.extend(_format_class_xp_lines(hero))
 

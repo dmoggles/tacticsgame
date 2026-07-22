@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 
 from tactics_game import config
-from tactics_game.engine import progression
+from tactics_game.engine import ability_library, progression
 from tactics_game.engine.battle import Battle
 from tactics_game.engine.progression import create_starting_hero
 from tactics_game.models.attributes import AffinityVector, Attributes
@@ -113,11 +113,15 @@ def test_basic_mend_goes_on_cooldown_after_use_and_cycles_back() -> None:
         if not battle.is_over:
             battle.step()  # Dummy's turn
 
+    mend_cooldown = next(
+        a for a in ability_library.load_abilities() if a.name == "Basic Mend"
+    ).cooldown
+
     assert healer.is_alive
     assert mend_used == [True, False, False, True]
     assert cooldowns_after_healer_turns == [
-        config.BASIC_MEND_COOLDOWN,
-        config.BASIC_MEND_COOLDOWN - 1,
-        config.BASIC_MEND_COOLDOWN - 2,
-        config.BASIC_MEND_COOLDOWN,
+        mend_cooldown,
+        mend_cooldown - 1,
+        mend_cooldown - 2,
+        mend_cooldown,
     ]

@@ -1,0 +1,92 @@
+# The classless Tier 0 kit every hero starts with (docs/02_phase1_definition.md).
+# Values are placeholders chosen to validate the *shape* of the simulation,
+# not balanced numbers — same spirit as config.py.
+#
+# `effect` is a list of components (a bare mapping is also accepted and
+# normalized to a one-item list). Each component:
+#   kind: damage | heal
+#   base: flat amount before scaling
+#   scaling: list of {attribute: might|focus|resolve|agility, multiplier}
+#   verb: used in the battle-log description
+#   applies_to: target | caster (defaults to target)
+abilities:
+  - id: basic_strike
+    name: "Basic Strike"
+    targets_ally: false
+    range: 1
+    min_range: 0
+    cooldown: 0
+    effect:
+      kind: damage
+      base: 5
+      scaling:
+        - attribute: might
+          multiplier: 1
+      verb: strikes
+
+  - id: basic_shot
+    name: "Basic Shot"
+    targets_ally: false
+    range: 4
+    min_range: 2 # can't be fired point-blank
+    cooldown: 0
+    effect:
+      kind: damage
+      base: 4
+      scaling:
+        - attribute: agility
+          multiplier: 1
+      verb: shoots
+
+  - id: basic_bolt
+    name: "Basic Bolt"
+    targets_ally: false
+    range: 4
+    min_range: 0
+    cooldown: 0
+    effect:
+      kind: damage
+      base: 4
+      scaling:
+        - attribute: focus
+          multiplier: 1
+      verb: bolts
+
+  - id: basic_mend
+    name: "Basic Mend"
+    targets_ally: true
+    range: 3
+    min_range: 0
+    cooldown: 3 # turns before it can be used again
+    effect:
+      kind: heal
+      base: 6
+      scaling:
+        - attribute: resolve
+          multiplier: 0.5
+      verb: mends
+
+  # Not shipped yet — illustrates the shapes the schema supports for a
+  # future ability with multiple effect components and scaling terms:
+  # - id: reckless_strike
+  #   name: "Reckless Strike"
+  #   targets_ally: false
+  #   range: 1
+  #   min_range: 0
+  #   cooldown: 0
+  #   effect:
+  #     - kind: damage
+  #       base: 8
+  #       scaling:
+  #         - attribute: might
+  #           multiplier: 1
+  #         - attribute: agility
+  #           multiplier: 0.25
+  #       verb: recklessly strikes
+  #     - kind: damage
+  #       base: 2
+  #       scaling:
+  #         - attribute: might
+  #           multiplier: 0.25
+  #       verb: is bruised by the recoil, taking
+  #       applies_to: caster
