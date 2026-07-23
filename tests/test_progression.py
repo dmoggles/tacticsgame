@@ -94,3 +94,91 @@ def test_xp_below_threshold_does_not_level_up() -> None:
 
     assert hero.level == 1
     assert hero.xp == config.XP_LEVEL_THRESHOLD - 1
+
+
+def _make_leveled_hero(name: str, level: int) -> Hero:
+    hero = _make_hero_with_affinity(AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25))
+    hero.name = name
+    hero.level = level
+    return hero
+
+
+def test_compute_enemy_strength_sums_enemy_levels() -> None:
+    enemies = [_make_leveled_hero("A", 1), _make_leveled_hero("B", 3)]
+    assert progression.compute_enemy_strength(enemies) == 4
+
+
+def test_compute_battle_xp_pool_scales_with_enemy_strength() -> None:
+    weak_squad = [_make_leveled_hero("A", 1)]
+    strong_squad = [_make_leveled_hero("A", 1), _make_leveled_hero("B", 4)]
+
+    assert progression.compute_battle_xp_pool(strong_squad) > progression.compute_battle_xp_pool(
+        weak_squad
+    )
+    assert progression.compute_battle_xp_pool(weak_squad) == (
+        config.XP_POOL_PER_STRENGTH_POINT * progression.compute_enemy_strength(weak_squad)
+    )
+
+
+def test_award_battle_xp_splits_pool_evenly_across_fielded_heroes() -> None:
+    fielded = [_make_leveled_hero("A", 1), _make_leveled_hero("B", 1)]
+    enemy_squad = [_make_leveled_hero("Enemy", 1)]
+    rng = random.Random(3)
+
+    progression.award_battle_xp(fielded, [], enemy_squad, rng)
+
+    expected_pool = progression.compute_battle_xp_pool(enemy_squad)
+    assert fielded[0].xp == fielded[1].xp == expected_pool // len(fielded)
+
+
+def test_award_battle_xp_gives_downed_heroes_a_full_share() -> None:
+    downed = _make_leveled_hero("Downed", 1)
+    downed.current_hp = 0
+    healthy = _make_leveled_hero("Healthy", 1)
+    enemy_squad = [_make_leveled_hero("Enemy", 1)]
+    rng = random.Random(4)
+
+    progression.award_battle_xp([downed, healthy], [], enemy_squad, rng)
+
+    # Presence, not survival, earns the share — a downed hero was still
+    # fielded, so it gets exactly what a standing ally gets.
+    assert downed.xp == healthy.xp
+    assert downed.xp > 0
+
+
+def test_award_battle_xp_bench_bonus_is_zero_at_default_multiplier() -> None:
+    fielded = [_make_leveled_hero("A", 1)]
+    benched = [_make_leveled_hero("Bench", 1)]
+    enemy_squad = [_make_leveled_hero("Enemy", 2)]
+    rng = random.Random(5)
+
+    progression.award_battle_xp(fielded, benched, enemy_squad, rng)
+
+    assert benched[0].xp == 0
+
+
+def test_award_battle_xp_bench_bonus_scales_with_explicit_multiplier() -> None:
+    fielded = [_make_leveled_hero("A", 1)]
+    benched = [_make_leveled_hero("Bench1", 1), _make_leveled_hero("Bench2", 1)]
+    enemy_squad = [_make_leveled_hero("Enemy", 2)]
+    rng = random.Random(6)
+
+    progression.award_battle_xp(fielded, benched, enemy_squad, rng, bench_multiplier=0.5)
+
+    pool = progression.compute_battle_xp_pool(enemy_squad)
+    expected_bench_share = round(0.5 * pool) // len(benched)
+    assert benched[0].xp == benched[1].xp == expected_bench_share
+    assert expected_bench_share > 0
+
+
+def test_award_battle_xp_triggers_multi_level_jumps_from_a_large_pool() -> None:
+    hero = _make_leveled_hero("Grower", 1)
+    # A squad of high-level enemies drives compute_battle_xp_pool well past
+    # several level thresholds in one call, exercising grant_xp's existing
+    # multi-level-jump loop (see test_grant_xp_applies_every_level_crossed_in_one_call).
+    enemy_squad = [_make_leveled_hero(f"Enemy {i}", 10) for i in range(4)]
+    rng = random.Random(7)
+
+    progression.award_battle_xp([hero], [], enemy_squad, rng)
+
+    assert hero.level > 3

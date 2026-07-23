@@ -90,7 +90,6 @@ class Battle:
 
         description = "; ".join(segments) if segments else f"{actor.name} passes"
 
-        progression.grant_xp(actor, config.XP_PER_ACTION, self.rng)
         self.last_log = TurnLog(actor_name=actor.name, description=description)
         self.turn_index += 1
 
@@ -107,3 +106,16 @@ class Battle:
         elif all(not hero.is_alive for hero in self.enemy_squad):
             self.is_over = True
             self.winner = "player"
+        else:
+            return
+        self._resolve_battle_end()
+
+    def _resolve_battle_end(self) -> None:
+        """Track 1 XP (victory only) and downed-hero revival (regardless
+        of outcome — a downed hero shouldn't stay stuck at 0 HP as an
+        engine-state matter). Phase 2a has no bench, so `benched` is
+        always empty here."""
+        if self.winner == "player":
+            progression.award_battle_xp(self.player_squad, [], self.enemy_squad, self.rng)
+        for hero in self.player_squad:
+            progression.revive_downed_hero(hero)

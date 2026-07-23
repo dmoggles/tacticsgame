@@ -119,6 +119,59 @@ def _level_up(hero: Hero, rng: random.Random) -> None:
     hero.current_hp += hero.max_hp - old_max_hp
 
 
+def compute_enemy_strength(enemy_squad: list[Hero]) -> int:
+    """Sum of enemy levels — the per-battle XP pool's basis.
+
+    Isolated in its own function since this is exactly the number most
+    likely to be revised as balance work continues (see
+    docs/03_phase2a_definition.md section 5); sum-of-attributes is an
+    equally valid alternative the doc calls out, just not the one chosen
+    here.
+    """
+    return sum(enemy.level for enemy in enemy_squad)
+
+
+def compute_battle_xp_pool(enemy_squad: list[Hero]) -> int:
+    """Total Track 1 XP pool awarded on battle victory."""
+    return config.XP_POOL_PER_STRENGTH_POINT * compute_enemy_strength(enemy_squad)
+
+
+def award_battle_xp(
+    fielded: list[Hero],
+    benched: list[Hero],
+    enemy_squad: list[Hero],
+    rng: random.Random,
+    bench_multiplier: float = config.BENCH_XP_BONUS_MULTIPLIER,
+) -> None:
+    """Track 1 XP as a per-battle pool, split evenly across `fielded`.
+
+    Downed heroes need no special-casing: they're never removed from
+    their squad list, so they're still in `fielded` and receive a full
+    share like anyone else — they were present. `benched` heroes receive
+    a separate bonus pool on top (not carved out of the fielded pool),
+    scaled by `bench_multiplier`; Phase 2a has no bench, so `benched` is
+    always empty in practice, but the plumbing exists now so Phase 2b's
+    bench doesn't require touching this function again.
+    """
+    pool = compute_battle_xp_pool(enemy_squad)
+    if fielded:
+        share = pool // len(fielded)
+        for hero in fielded:
+            grant_xp(hero, share, rng)
+    if benched:
+        bench_pool = round(bench_multiplier * pool)
+        bench_share = bench_pool // len(benched)
+        for hero in benched:
+            grant_xp(hero, bench_share, rng)
+
+
+def revive_downed_hero(hero: Hero) -> None:
+    """Downed, not dead: a hero at 0 HP comes back at a minimal HP value
+    at battle end, rather than staying permanently removed."""
+    if not hero.is_alive:
+        hero.current_hp = config.DOWNED_REVIVE_HP
+
+
 def grant_class_xp(
     hero: Hero, track: ClassTrack, amount: int = config.CLASS_XP_PER_ABILITY_USE
 ) -> None:

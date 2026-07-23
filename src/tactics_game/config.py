@@ -15,8 +15,19 @@ BASE_HP = 10
 HP_ATTRIBUTE_MULTIPLIER = 2
 
 # --- Track 1 progression (level & XP) ---
-XP_PER_ACTION = 10
 XP_LEVEL_THRESHOLD = 50
+# Per-battle XP pool, awarded on victory: XP_POOL_PER_STRENGTH_POINT *
+# progression.compute_enemy_strength(enemy_squad). Supersedes the old
+# per-action accrual (docs/03_phase2a_definition.md section 5;
+# docs/adr/0003-track1-per-battle-xp-and-downed-state.md).
+XP_POOL_PER_STRENGTH_POINT = 25
+# Bonus pool for benched heroes, as a fraction of the fielded pool. 0
+# until a later meta-progression phase makes it upgradeable; plumbed now
+# so the award function doesn't need touching twice (Phase 2a has no
+# bench yet).
+BENCH_XP_BONUS_MULTIPLIER = 0.0
+# HP a downed hero (0 HP) revives to at battle end — "downed, not dead."
+DOWNED_REVIVE_HP = 1
 
 # --- Track 2 progression (class XP, accrual only this phase) ---
 CLASS_XP_PER_ABILITY_USE = 5

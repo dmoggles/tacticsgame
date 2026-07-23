@@ -44,19 +44,35 @@ def test_step_processes_exactly_one_turn() -> None:
     assert battle.turn_index == 1
 
 
-def test_heroes_gain_track1_xp_and_can_level_up_during_battle() -> None:
-    # AI decision-making affects how quickly a given seed's battle resolves,
-    # so pin the property (level-ups happen via the battle loop) across a
-    # spread of seeds rather than one exact seed's outcome.
-    leveled_up = False
+def test_track1_xp_does_not_accrue_mid_battle() -> None:
+    # Supersedes the old per-action accrual model (docs/03_phase2a_definition.md
+    # section 5): XP is now a per-battle pool awarded only at battle end, so
+    # no hero's xp/level should move at all while the battle is in progress.
+    battle = _build_battle(seed=5)
+    for _ in range(6):
+        if battle.is_over:
+            break
+        battle.step()
+        for hero in battle.all_heroes:
+            assert hero.xp == 0
+            assert hero.level == 1
+
+
+def test_track1_xp_is_awarded_to_the_player_squad_on_victory() -> None:
+    # AI decision-making affects how quickly/whether a given seed's battle
+    # resolves in the player's favor, so check the property across a spread
+    # of seeds rather than pinning to one seed's exact outcome.
+    any_player_victory = False
     for seed in range(10):
         battle = _build_battle(seed=seed)
         battle.run_to_completion()
-        for hero in battle.all_heroes:
-            assert hero.xp >= 0
-            assert hero.level >= 1
-        leveled_up = leveled_up or any(hero.level > 1 for hero in battle.all_heroes)
-    assert leveled_up
+        if battle.winner == "player":
+            any_player_victory = True
+            assert all(hero.xp > 0 for hero in battle.player_squad)
+        else:
+            # No reward for losing: player squad gets no XP pool on defeat.
+            assert all(hero.xp == 0 for hero in battle.player_squad)
+    assert any_player_victory
 
 
 def test_ability_usage_accrues_track2_class_xp() -> None:
@@ -125,3 +141,54 @@ def test_basic_mend_goes_on_cooldown_after_use_and_cycles_back() -> None:
         mend_cooldown - 2,
         mend_cooldown,
     ]
+
+
+def test_downed_hero_is_not_removed_and_revives_at_battle_end() -> None:
+    # A hero already at 0 HP shouldn't end the battle by itself (only "all
+    # fielded heroes downed" does), shouldn't be removed from the squad, and
+    # should come back at DOWNED_REVIVE_HP once the battle concludes.
+    downed_hero = Hero(
+        name="Downed",
+        attributes=Attributes(might=1, focus=1, resolve=1, agility=1),
+        hidden_affinity=AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25),
+        abilities=progression.create_basic_kit(),
+        max_hp=20,
+        current_hp=0,
+        position=Position(0, 0),
+        is_player_controlled=True,
+    )
+    striker = Hero(
+        name="Striker",
+        attributes=Attributes(might=20, focus=1, resolve=1, agility=1),
+        hidden_affinity=AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25),
+        abilities=progression.create_basic_kit(),
+        max_hp=40,
+        current_hp=40,
+        position=Position(1, 0),
+        is_player_controlled=True,
+    )
+    enemy = Hero(
+        name="Enemy",
+        attributes=Attributes(might=1, focus=1, resolve=1, agility=1),
+        hidden_affinity=AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25),
+        abilities=progression.create_basic_kit(),
+        max_hp=5,
+        current_hp=5,
+        position=Position(2, 0),
+        is_player_controlled=False,
+    )
+    grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
+    battle = Battle(grid=grid, player_squad=[downed_hero, striker], enemy_squad=[enemy])
+
+    # Downed alone doesn't end the battle: the striker is still standing.
+    assert not battle.is_over
+
+    battle.run_to_completion()
+
+    assert battle.winner == "player"
+    assert downed_hero in battle.player_squad
+    assert downed_hero.is_alive
+    assert downed_hero.current_hp == config.DOWNED_REVIVE_HP
+    # Downed heroes still count as fielded and get a full XP share.
+    assert downed_hero.xp == striker.xp
+    assert downed_hero.xp > 0
