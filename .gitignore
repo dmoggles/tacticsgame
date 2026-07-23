@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Session-end telemetry dumps (docs/04_phase2b_definition.md section 7) —
+# generated dev artifacts, not source.
+telemetry/

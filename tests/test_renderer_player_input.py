@@ -278,8 +278,7 @@ def test_between_battle_screen_key_1_resolves_a_pending_manual_allocation() -> N
 
 def test_session_end_writes_telemetry_when_enabled(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(config, "TELEMETRY_ENABLED", True)
-    output_path = tmp_path / "session_report.json"
-    monkeypatch.setattr(telemetry, "DEFAULT_OUTPUT_PATH", output_path)
+    monkeypatch.setattr(telemetry, "TELEMETRY_DIR", tmp_path)
 
     roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.FIELDED_SQUAD_SIZE)]
     session = Session(roster=roster, rng=random.Random(33), battles_total=1)
@@ -293,14 +292,14 @@ def test_session_end_writes_telemetry_when_enabled(tmp_path, monkeypatch) -> Non
     renderer.run(battle, max_frames=1, session=session)
 
     assert session.is_over
-    assert output_path.exists()
-    report = json.loads(output_path.read_text(encoding="utf-8"))
+    written = list(tmp_path.glob("*.json"))
+    assert len(written) == 1
+    report = json.loads(written[0].read_text(encoding="utf-8"))
     assert {entry["name"] for entry in report} == {hero.name for hero in roster}
 
 
 def test_session_end_does_not_write_telemetry_by_default(tmp_path, monkeypatch) -> None:
-    output_path = tmp_path / "session_report.json"
-    monkeypatch.setattr(telemetry, "DEFAULT_OUTPUT_PATH", output_path)
+    monkeypatch.setattr(telemetry, "TELEMETRY_DIR", tmp_path)
 
     roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.FIELDED_SQUAD_SIZE)]
     session = Session(roster=roster, rng=random.Random(34), battles_total=1)
@@ -314,4 +313,4 @@ def test_session_end_does_not_write_telemetry_by_default(tmp_path, monkeypatch) 
     renderer.run(battle, max_frames=1, session=session)
 
     assert session.is_over
-    assert not output_path.exists()
+    assert list(tmp_path.glob("*.json")) == []

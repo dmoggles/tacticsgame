@@ -94,14 +94,33 @@ def test_write_session_report_writes_valid_json_matching_the_report(tmp_path) ->
     assert on_disk == telemetry.build_session_report(session)
 
 
-def test_write_session_report_defaults_to_the_module_output_path(tmp_path, monkeypatch) -> None:
-    default_path = tmp_path / "telemetry" / "session_report.json"
-    monkeypatch.setattr(telemetry, "DEFAULT_OUTPUT_PATH", default_path)
+def test_write_session_report_defaults_into_the_telemetry_dir(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(telemetry, "TELEMETRY_DIR", tmp_path)
     roster = [_make_hero(f"Hero {i + 1}") for i in range(config.FIELDED_SQUAD_SIZE)]
     session = Session(roster=roster, rng=random.Random(2))
     session.begin_battle(roster)
 
     written_path = telemetry.write_session_report(session)
 
-    assert written_path == default_path
-    assert default_path.exists()
+    assert written_path.parent == tmp_path
+    assert written_path.exists()
+
+
+def test_write_session_report_does_not_overwrite_a_previous_session(tmp_path, monkeypatch) -> None:
+    # The whole point of this dump is correlating concentration against
+    # affinity *across played sessions* — a fixed output path would defeat
+    # that by letting each session clobber the last one's file.
+    monkeypatch.setattr(telemetry, "TELEMETRY_DIR", tmp_path)
+    roster = [_make_hero(f"Hero {i + 1}") for i in range(config.FIELDED_SQUAD_SIZE)]
+
+    session_a = Session(roster=roster, rng=random.Random(3))
+    session_a.begin_battle(roster)
+    path_a = telemetry.write_session_report(session_a)
+
+    session_b = Session(roster=roster, rng=random.Random(4))
+    session_b.begin_battle(roster)
+    path_b = telemetry.write_session_report(session_b)
+
+    assert path_a != path_b
+    assert path_a.exists()
+    assert path_b.exists()

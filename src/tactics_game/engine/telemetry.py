@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -10,15 +12,27 @@ from .session import Session
 # Session-end telemetry (docs/04_phase2b_definition.md section 7): whether
 # player agency over Track 2 specialization is real or cosmetic hinges on
 # correlating class-XP concentration against each hero's hidden affinity
-# offline. The affinity vector appears in this dump *because* it's a dev
-# artifact, not a player-facing path — nothing in visualizer/ ever reads a
-# telemetry report back for on-screen display (see docs/adr/0008-
-# between-battle-screen.md's snapshot/delta mechanism for the player-facing
-# equivalent, which never touches affinity at all).
+# offline, "across played sessions" (plural) per the doc's own wording — so
+# one session's dump must not clobber the last one. The affinity vector
+# appears in this dump *because* it's a dev artifact, not a player-facing
+# path — nothing in visualizer/ ever reads a telemetry report back for
+# on-screen display (see docs/adr/0008-between-battle-screen.md's
+# snapshot/delta mechanism for the player-facing equivalent, which never
+# touches affinity at all).
 
-DEFAULT_OUTPUT_PATH = (
-    Path(__file__).resolve().parent.parent.parent.parent / "telemetry" / "session_report.json"
-)
+TELEMETRY_DIR = Path(__file__).resolve().parent.parent.parent.parent / "telemetry"
+
+
+def _default_output_path() -> Path:
+    """A fresh, non-colliding filename per session — computed at call time
+    (not a module-level constant) so every session actually gets its own
+    file instead of overwriting a single fixed path. The timestamp keeps
+    files sortable; the uuid suffix guarantees uniqueness regardless of
+    clock resolution (two sessions ending within the same tick shouldn't
+    silently clobber each other either)."""
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    unique = uuid.uuid4().hex[:8]
+    return TELEMETRY_DIR / f"session_{timestamp}-{unique}.json"
 
 
 def compute_class_xp_concentration(class_xp: dict[ClassTrack, int]) -> float:
@@ -60,7 +74,7 @@ def write_session_report(session: Session, path: Path | None = None) -> Path:
     """Writes build_session_report(session) as indented JSON, creating the
     parent directory if needed (mirrors dev_tools.write_baseline_fixture).
     Returns the path actually written to, for callers that want to log it."""
-    output_path = path if path is not None else DEFAULT_OUTPUT_PATH
+    output_path = path if path is not None else _default_output_path()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(build_session_report(session), indent=2) + "\n", encoding="utf-8")
     return output_path
