@@ -35,3 +35,10 @@ def select_fielded_squad(roster: list[Hero], fielded: list[Hero]) -> list[Hero]:
             raise ValueError(f"{hero.name} is not in the roster")
     fielded_id_set = set(fielded_ids)
     return [hero for hero in roster if id(hero) not in fielded_id_set]
+
+
+def select_balanced_squad(roster: list[Hero]) -> list[Hero]:
+    """Select a fielded squad prioritizing heroes with fewer fielded battles.
+    Used for balanced squad rotation (e.g. headless auto-play / telemetry)."""
+    sorted_roster = sorted(roster, key=lambda h: (h.battles_fielded, roster.index(h)))
+    return sorted_roster[: config.FIELDED_SQUAD_SIZE]

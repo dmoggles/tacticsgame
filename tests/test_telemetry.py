@@ -57,6 +57,9 @@ def test_build_hero_report_includes_all_required_fields() -> None:
     hero.battles_fielded = 4
     hero.battles_benched = 1
 
+    hero.ability_uses["Basic Strike"] = 3
+    hero.manual_allocations = ["might", None]
+
     report = telemetry.build_hero_report(hero)
 
     assert report["name"] == "Sample"
@@ -67,6 +70,13 @@ def test_build_hero_report_includes_all_required_fields() -> None:
     assert report["hidden_affinity"] == {"might": 0.4, "focus": 0.1, "resolve": 0.4, "agility": 0.1}
     assert report["battles_fielded"] == 4
     assert report["battles_benched"] == 1
+    assert report["ability_uses"] == {
+        "Basic Strike": 3,
+        "Basic Shot": 0,
+        "Basic Bolt": 0,
+        "Basic Mend": 0,
+    }
+    assert report["manual_allocations"] == ["might", None]
 
 
 def test_build_session_report_covers_the_whole_roster_not_just_fielded() -> None:

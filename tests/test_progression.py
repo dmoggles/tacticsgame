@@ -218,12 +218,12 @@ def test_award_battle_xp_triggers_multi_level_jumps_from_a_large_pool() -> None:
     assert hero.level > 3
 
 
-def test_award_bench_bonus_xp_is_zero_at_default_multiplier() -> None:
+def test_award_bench_bonus_xp_is_zero_at_explicit_zero_multiplier() -> None:
     benched = [_make_leveled_hero("Bench", 1)]
     enemy_squad = [_make_leveled_hero("Enemy", 2)]
     rng = random.Random(5)
 
-    progression.award_bench_bonus_xp(benched, enemy_squad, rng)
+    progression.award_bench_bonus_xp(benched, enemy_squad, rng, bench_multiplier=0.0)
 
     assert benched[0].xp == 0
 

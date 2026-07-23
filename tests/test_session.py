@@ -286,7 +286,7 @@ def test_fielding_fewer_heroes_gives_each_a_proportionally_larger_xp_share() -> 
     assert _total_progress(short_roster[0]) > 0
 
 
-def test_bench_bonus_xp_is_zero_at_default_multiplier() -> None:
+def test_bench_bonus_xp_accrues_at_default_multiplier() -> None:
     roster = _make_squad(config.ROSTER_SIZE)
     session = Session(roster=roster, rng=random.Random(10), battles_total=1)
     session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])
@@ -296,7 +296,7 @@ def test_bench_bonus_xp_is_zero_at_default_multiplier() -> None:
 
     assert session.benched
     for hero in session.benched:
-        assert hero.xp == 0
+        assert hero.xp > 0
 
 
 def test_session_ends_in_win_once_all_battles_are_won() -> None:
@@ -443,3 +443,22 @@ def test_deltas_reflect_only_the_most_recent_battle_not_accumulated_history() ->
     # the most recent begin_battle-to-now gap.
     assert final_deltas[0].class_xp_deltas[ClassTrack.FIGHTER] == 0
     assert not final_deltas[0].leveled_up
+
+
+def test_pending_level_ups_resolved_on_session_end() -> None:
+    roster = _make_squad(config.FIELDED_SQUAD_SIZE)
+    hero = roster[0]
+    session = Session(roster=roster, rng=random.Random(30), battles_total=1)
+    session.begin_battle(roster)
+
+    progression.grant_xp(hero, config.XP_LEVEL_THRESHOLD, session.rng)
+    assert hero.pending_level_ups > 0
+
+    _force_win(session)
+    session.advance()
+
+    assert session.is_over
+    assert hero.pending_level_ups == 0
+    total_attrs = hero.attributes.might + hero.attributes.focus + hero.attributes.resolve + hero.attributes.agility
+    # Base attrs (4) + level 2 allocation (3) = 7 total
+    assert total_attrs == 7

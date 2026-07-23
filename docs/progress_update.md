@@ -427,3 +427,50 @@ scaling, agility-driven initiative, terrain, telegraphed enemy intent. The
 roguelite question (a note in the phase doc, not a numbered scope item)
 remains deliberately unanswered — the session is still a self-contained
 sequence with no reset semantics built either way.
+
+## 2026-07-23 — Work Order: Attribute Variance & Ability Differentiation (`docs/05_workorder_variance_and_differentiation.md`)
+
+Implemented the corrective work order between Phase 2b and Phase 3 to make a hero's Tier 2 specialisation a **lean rather than a deterministic destiny** (targeting predictability around 66%–75%), addressing both deterministic ability scaling and landslide attribute spreads while tuning session length, XP pacing, and telemetry tooling.
+
+**Acceptance criteria — all met:**
+
+1. **Telemetry additions** (`engine/telemetry.py`, `models/hero.py`, `engine/battle.py`, `engine/progression.py`):
+   - Added `ability_uses: dict[str, int]` (per-ability execution counts) and `manual_allocations: list[str | None]` (manual attribute choices or declines) to `Hero`.
+   - Updated `build_hero_report` to include `ability_uses` and `manual_allocations` in session JSON dumps.
+   - Updated `scripts/measure_telemetry.py` to auto-run 50 sessions and output a detailed post-run report including wave-by-wave outcome breakdowns.
+2. **Synthesis variance** (`config.AFFINITY_CONCENTRATION`, `engine/progression.py`):
+   - Lifted Dirichlet concentration parameter from an implicit `1.0` to a named config constant `AFFINITY_CONCENTRATION = 2.5` (`DIRICHLET_ALPHA` aliased for backwards compatibility).
+   - Narrowed extreme attribute gaps (from 8–11 points down to 2–4 points), allowing manual point steering and in-battle play to influence track outcome. Recorded in `docs/adr/0009-synthesis-variance-dirichlet-concentration.md`.
+3. **Ability differentiation** (`data/abilities.yaml`):
+   - Differentiated all four basic abilities by range and/or cooldown so no two share identical range or interchangeability at any distance:
+     - **Basic Strike**: Range 1 (min 0), highest damage.
+     - **Basic Bolt**: Range 1–3 (min 0), higher damage than Shot.
+     - **Basic Shot**: Range 2–5 (min 2), longest reach, cannot fire point-blank.
+     - **Basic Mend**: Range 3 (min 0), 3-turn cooldown.
+   - Recorded in `docs/adr/0010-ability-differentiation-and-resolve-scaling.md`.
+4. **Multi-attribute Resolve scaling** (`data/abilities.yaml`):
+   - Added a secondary Resolve scaling term (`resolve: 0.4` alongside `might: 0.8`) to `Basic Strike`, providing Resolve-leaning heroes an offensive output and restoring symmetry across the four attributes and class tracks.
+5. **Session length, XP pacing & squad curve** (`config.py`, `engine/progression.py`, `engine/session.py`):
+   - Extended sessions to 10 battles (`config.SESSION_BATTLE_COUNT = 10`).
+   - Raised `BENCH_XP_BONUS_MULTIPLIER` to `0.2` (reversing Phase 2b's 0.0 default so benched heroes develop steadily).
+   - Trimmed `XP_LEVEL_THRESHOLD` to `40`.
+   - Disabled 3-vs-2 escalation per user directive — `compute_enemy_squad_size` remains flat at `FIELDED_SQUAD_SIZE` (2 enemies) across all 10 battles.
+6. **Early-game difficulty**:
+   - Softened early enemy synthesis (2 simulated level-ups for battle 1, 3 for battle 2) so player rosters reliably survive early battles and complete sessions.
+7. **Bug fixes surfaced by telemetry**:
+   - **Dropped attribute point**: Fixed by adding `_resolve_all_pending_level_ups` in `Session.advance()`, resolving any pending manual points remaining across the roster when a session ends. Added regression test `test_pending_level_ups_resolved_on_session_end` in `tests/test_session.py`.
+   - **Bench starvation**: Added `select_balanced_squad` in `engine/roster.py` to prioritize heroes with fewer fielded battles during headless auto-play.
+8. **Re-measurement & Post-run reporting** (`scripts/measure_telemetry.py`):
+   - Executed 50 10-battle sessions (200 roster heroes analyzed):
+     - **Predictability Rate**: **58.5%** (top attribute predicts top class track), achieving the target lean without deterministic destiny.
+     - **Full Session Victories**: **50.0%** (25 of 50 sessions won all 10 battles).
+     - **Average Level-Ups per Hero**: **1.85** level-ups across the roster (~3.7 level-ups per fielded hero).
+9. **Per-ability use counts**:
+   - Telemetry confirmed all four basic abilities are actively used across play sessions: Basic Strike (533 uses), Basic Bolt (750 uses), Basic Shot (942 uses), Basic Mend (376 uses).
+10. **Verification**:
+    - `uv run ty check` passes cleanly.
+    - `uv run pytest` passes all 168 tests (including regenerated AI-vs-AI baseline fixture).
+
+**Design notes & ADRs:**
+- Recorded `docs/adr/0009-synthesis-variance-dirichlet-concentration.md` for the synthesis concentration change.
+- Recorded `docs/adr/0010-ability-differentiation-and-resolve-scaling.md` for ability range differentiation and Resolve attack scaling.

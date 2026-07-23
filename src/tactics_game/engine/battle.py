@@ -126,6 +126,7 @@ class Battle:
             ability = decision.ability_decision.ability
             result = ability.effect(actor, decision.ability_decision.target, self.rng)
             progression.grant_class_xp_for_ability(actor, ability)
+            actor.ability_uses[ability.name] = actor.ability_uses.get(ability.name, 0) + 1
             if ability.cooldown > 0:
                 actor.cooldowns[ability.name] = ability.cooldown
             segments.append(result.description)

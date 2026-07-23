@@ -118,7 +118,7 @@ def test_valid_targets_respects_min_and_max_range() -> None:
     shot = _ability("Basic Shot", caster.abilities)  # min_range=2, range=4
     too_close = _make_hero("TooClose", Position(1, 0), is_player_controlled=False)
     in_range = _make_hero("InRange", Position(3, 0), is_player_controlled=False)
-    too_far = _make_hero("TooFar", Position(5, 0), is_player_controlled=False)
+    too_far = _make_hero("TooFar", Position(6, 0), is_player_controlled=False)
 
     targets = queries.valid_targets(
         caster, shot, caster.position, [caster], [too_close, in_range, too_far]

@@ -5,7 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from .. import config
-from ..engine import progression
+from ..engine import progression, roster
 
 if TYPE_CHECKING:
     from ..engine.session import Session

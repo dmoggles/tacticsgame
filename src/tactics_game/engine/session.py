@@ -28,12 +28,9 @@ from .hero_delta import HeroDelta, HeroSnapshot
 
 def _field_first_available(roster_: list[Hero]) -> list[Hero]:
     """Default squad-selection strategy for headless use (run_to_completion):
-    field the first config.FIELDED_SQUAD_SIZE roster members every battle.
-    Matches Phase 2a's behavior exactly when roster size == fielded size, so
-    existing full-auto tests don't need to supply a real strategy."""
-    return roster_[: config.FIELDED_SQUAD_SIZE]
-
-
+    field heroes prioritizing those with fewer fielded battles (roster.select_balanced_squad)
+    so all roster heroes develop evenly during auto-play."""
+    return roster.select_balanced_squad(roster_)
 @dataclass
 class Session:
     roster: list[Hero]
@@ -53,7 +50,7 @@ class Session:
         first battle and again after every advance() that doesn't end the
         session — Session never fields anyone on its own.
 
-        Snapshots the whole roster first, for deltas() to compare against
+        Snapshots the whole roster first, for deltas()'s to compare against
         once this battle resolves — see deltas()'s docstring on why this is
         the only "before" state Session ever keeps.
         """
@@ -87,6 +84,13 @@ class Session:
             for snapshot, hero in zip(self._pre_battle_snapshots, self.roster)
         ]
 
+    def _resolve_all_pending_level_ups(self) -> None:
+        """Resolve any pending manual attribute points remaining across the roster
+        when a session ends, so points earned in the final battle are never silently lost."""
+        for hero in self.roster:
+            while hero.pending_level_ups > 0:
+                progression.resolve_manual_allocation(hero, attribute=None, rng=self.rng)
+
     def advance(self) -> None:
         """Call once `self.current_battle.is_over`. Scores the finished
         battle (including bench-bonus XP, which only Session can award —
@@ -109,12 +113,14 @@ class Session:
             self.is_over = True
             self.result = "lost"
             self.current_battle = None
+            self._resolve_all_pending_level_ups()
             return
         self.battles_won += 1
         if self.battles_won >= self.battles_total:
             self.is_over = True
             self.result = "won"
             self.current_battle = None
+            self._resolve_all_pending_level_ups()
             return
         self._apply_recovery()
         self.current_battle = None
@@ -154,7 +160,7 @@ class Session:
             hero.cooldowns = {}
             hero.position = Position(1, 2 + index * 3)
         grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
-        enemy_squad = progression.generate_enemy_squad(self.rng)
+        enemy_squad = progression.generate_enemy_squad(self.rng, battle_index=self.battles_won)
         self.current_battle = Battle(
             grid=grid, player_squad=self.fielded, enemy_squad=enemy_squad, rng=self.rng
         )

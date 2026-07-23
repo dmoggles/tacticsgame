@@ -50,6 +50,8 @@ class Hero:
     # not otherwise read by gameplay logic.
     battles_fielded: int = 0
     battles_benched: int = 0
+    ability_uses: dict[str, int] = field(default_factory=dict)
+    manual_allocations: list[str | None] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if len(self.abilities) != config.ABILITY_SLOT_COUNT:

@@ -18,7 +18,7 @@ def test_load_abilities_returns_the_four_basic_kit_abilities() -> None:
     assert strike.targets_ally is False
 
     shot = by_name["Basic Shot"]
-    assert shot.range == 4
+    assert shot.range == 5
     assert shot.min_range == 2
 
     mend = by_name["Basic Mend"]

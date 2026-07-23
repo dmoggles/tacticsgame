@@ -6,7 +6,8 @@ simulation, not balanced numbers. See docs/02_phase1_definition.md.
 
 # --- Hero synthesis (hidden affinity + starting attributes) ---
 BASE_ATTRIBUTE_VALUE = 1
-DIRICHLET_ALPHA = 1.0  # symmetric Dirichlet (uniform over the simplex)
+AFFINITY_CONCENTRATION = 2.5  # Dirichlet concentration parameter (higher = milder attribute leans)
+DIRICHLET_ALPHA = AFFINITY_CONCENTRATION
 SYNTHESIS_LEVEL_UPS = 5
 POINTS_PER_LEVEL_UP = 3
 
@@ -15,7 +16,7 @@ BASE_HP = 10
 HP_ATTRIBUTE_MULTIPLIER = 2
 
 # --- Track 1 progression (level & XP) ---
-XP_LEVEL_THRESHOLD = 50
+XP_LEVEL_THRESHOLD = 40
 # Per-battle XP pool, awarded on victory: XP_POOL_PER_STRENGTH_POINT *
 # progression.compute_enemy_strength(enemy_squad). Supersedes the old
 # per-action accrual (docs/03_phase2a_definition.md section 5;
@@ -25,7 +26,7 @@ XP_POOL_PER_STRENGTH_POINT = 25
 # until a later meta-progression phase makes it upgradeable; plumbed now
 # so the award function doesn't need touching twice (Phase 2a has no
 # bench yet).
-BENCH_XP_BONUS_MULTIPLIER = 0.0
+BENCH_XP_BONUS_MULTIPLIER = 0.2
 # HP a downed hero (0 HP) revives to at battle end — "downed, not dead."
 DOWNED_REVIVE_HP = 1
 # Manual attribute allocation (docs/04_phase2b_definition.md section 5): of
@@ -76,7 +77,7 @@ AI_KILL_SCORE_BONUS = 10_000
 MAX_BATTLE_STEPS = 500
 
 # --- Session chaining ---
-SESSION_BATTLE_COUNT = 5
+SESSION_BATTLE_COUNT = 10
 # Gradual recovery (docs/04_phase2b_definition.md section 3): between
 # battles, every roster hero heals a fraction of their max HP, at a rate
 # set by whether they were fielded or benched in the battle just fought.

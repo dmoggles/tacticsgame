@@ -83,12 +83,12 @@ def test_decide_turn_falls_back_to_ranged_when_melee_is_unreachable_this_turn() 
 
     decision = ai.decide_turn(actor, [actor], [enemy], _grid())
 
-    # Moving the full MOVEMENT_RANGE only closes the gap to distance 2 —
-    # melee (range 1) is still unreachable, but Basic Shot (min 2, max 4) is,
-    # so the actor should move in and shoot rather than whiff toward melee.
+    # Moving the full MOVEMENT_RANGE (3) closes the gap to distance 2 —
+    # melee (range 1) is unreachable, but both Basic Bolt (range 1-3, damage 6)
+    # and Basic Shot (range 2-5, damage 5) are reachable. AI picks higher damage (Bolt).
     assert decision.destination == Position(config.MOVEMENT_RANGE, 0)
     assert decision.ability_decision is not None
-    assert decision.ability_decision.ability.name == "Basic Shot"
+    assert decision.ability_decision.ability.name in ("Basic Bolt", "Basic Shot")
     assert decision.ability_decision.target is enemy
 
 

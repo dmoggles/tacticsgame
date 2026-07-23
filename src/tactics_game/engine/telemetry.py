@@ -63,6 +63,11 @@ def build_hero_report(hero: Hero) -> dict[str, Any]:
         "hidden_affinity": {name.value: weight for name, weight in hero.hidden_affinity.as_weights()},
         "battles_fielded": hero.battles_fielded,
         "battles_benched": hero.battles_benched,
+        "ability_uses": {
+            ability.name: hero.ability_uses.get(ability.name, 0)
+            for ability in hero.abilities
+        },
+        "manual_allocations": list(hero.manual_allocations),
     }
 
 

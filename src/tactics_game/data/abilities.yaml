@@ -21,13 +21,15 @@ abilities:
       base: 5
       scaling:
         - attribute: might
-          multiplier: 1
+          multiplier: 0.8
+        - attribute: resolve
+          multiplier: 0.4
       verb: strikes
 
   - id: basic_shot
     name: "Basic Shot"
     targets_ally: false
-    range: 4
+    range: 5
     min_range: 2 # can't be fired point-blank
     cooldown: 0
     effect:
@@ -41,12 +43,12 @@ abilities:
   - id: basic_bolt
     name: "Basic Bolt"
     targets_ally: false
-    range: 4
+    range: 3
     min_range: 0
     cooldown: 0
     effect:
       kind: damage
-      base: 4
+      base: 5
       scaling:
         - attribute: focus
           multiplier: 1

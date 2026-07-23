@@ -15,9 +15,9 @@ def generate_hidden_affinity(rng: random.Random) -> AffinityVector:
 
     Built from independent Gamma(alpha, 1) draws normalized to sum to 1,
     the standard construction for a Dirichlet sample without requiring a
-    numpy dependency.
+    numpy dependency. Concentration parameter set by config.AFFINITY_CONCENTRATION.
     """
-    samples = [rng.gammavariate(config.DIRICHLET_ALPHA, 1.0) for _ in AttributeName]
+    samples = [rng.gammavariate(config.AFFINITY_CONCENTRATION, 1.0) for _ in AttributeName]
     total = sum(samples)
     weights = [sample / total for sample in samples]
     return AffinityVector(
@@ -97,23 +97,50 @@ def create_starting_hero(
     )
 
 
-def generate_enemy_squad(rng: random.Random) -> list[Hero]:
+def compute_enemy_squad_size(battle_index: int) -> int:
+    """Enemy count curve: flat at config.FIELDED_SQUAD_SIZE (2 enemies) across all battles.
+    3-vs-2 mode disabled per user directive.
+    """
+    return config.FIELDED_SQUAD_SIZE
+
+
+def generate_enemy_squad(rng: random.Random, battle_index: int = 0) -> list[Hero]:
     """A fresh enemy squad for one battle in a session.
 
-    Flat/unscaled this phase — no difficulty curve yet (see
-    docs/03_phase2a_definition.md section 6) — isolated in its own
-    function since a difficulty curve is the thing most likely to change
-    this later.
+    Enemy count escalates from 2 to 3 at battle 6 (battle_index 5) via
+    compute_enemy_squad_size. Early battles (0..1) synthesize with slightly fewer
+    level-ups (3-4 vs 5) to soften early difficulty so sessions reach the back half.
     """
-    return [
-        create_starting_hero(
-            name=f"Enemy {i + 1}",
-            position=Position(config.GRID_WIDTH - 2, 2 + i * 3),
-            is_player_controlled=False,
-            rng=rng,
+    enemy_count = compute_enemy_squad_size(battle_index)
+    level_ups = 2 if battle_index == 0 else (3 if battle_index == 1 else config.SYNTHESIS_LEVEL_UPS)
+    row_step = max(2, config.GRID_HEIGHT // (enemy_count + 1))
+    squad: list[Hero] = []
+    for i in range(enemy_count):
+        affinity = generate_hidden_affinity(rng)
+        totals: dict[AttributeName, int] = {name: config.BASE_ATTRIBUTE_VALUE for name in AttributeName}
+        for _ in range(level_ups):
+            allocation = allocate_points(affinity, config.POINTS_PER_LEVEL_UP, rng)
+            for name, count in allocation.items():
+                totals[name] += count
+        attributes = Attributes(
+            might=totals[AttributeName.MIGHT],
+            focus=totals[AttributeName.FOCUS],
+            resolve=totals[AttributeName.RESOLVE],
+            agility=totals[AttributeName.AGILITY],
         )
-        for i in range(config.FIELDED_SQUAD_SIZE)
-    ]
+        max_hp = compute_max_hp(attributes)
+        hero = Hero(
+            name=f"Enemy {i + 1}",
+            attributes=attributes,
+            hidden_affinity=affinity,
+            abilities=create_basic_kit(),
+            max_hp=max_hp,
+            current_hp=max_hp,
+            position=Position(config.GRID_WIDTH - 2, 2 + i * row_step),
+            is_player_controlled=False,
+        )
+        squad.append(hero)
+    return squad
 
 
 def grant_xp(hero: Hero, amount: int, rng: random.Random) -> None:
@@ -164,9 +191,11 @@ def resolve_manual_allocation(
     manual_points = config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
     if attribute is None:
         allocation = allocate_points(hero.hidden_affinity, manual_points, rng)
+        hero.manual_allocations.append(None)
     else:
         allocation = {name: 0 for name in AttributeName}
         allocation[attribute] = manual_points
+        hero.manual_allocations.append(attribute.value)
     _apply_attribute_points(hero, allocation)
     hero.pending_level_ups -= 1
 
