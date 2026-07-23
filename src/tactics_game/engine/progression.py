@@ -97,6 +97,25 @@ def create_starting_hero(
     )
 
 
+def generate_enemy_squad(rng: random.Random) -> list[Hero]:
+    """A fresh enemy squad for one battle in a session.
+
+    Flat/unscaled this phase — no difficulty curve yet (see
+    docs/03_phase2a_definition.md section 6) — isolated in its own
+    function since a difficulty curve is the thing most likely to change
+    this later.
+    """
+    return [
+        create_starting_hero(
+            name=f"Enemy {i + 1}",
+            position=Position(config.GRID_WIDTH - 2, 2 + i * 3),
+            is_player_controlled=False,
+            rng=rng,
+        )
+        for i in range(config.SQUAD_SIZE)
+    ]
+
+
 def grant_xp(hero: Hero, amount: int, rng: random.Random) -> None:
     """Grant Track 1 XP, applying every level-up crossed (loop for big jumps)."""
     hero.xp += amount
