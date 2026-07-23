@@ -40,7 +40,10 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
     """Interactive debug visualizer. The player controls player-side
     heroes' turns (click/keys, see the module docstring in
     visualizer/player_input.py for the interaction model); the AI keeps
-    controlling the enemy side. A toggles full AI-vs-AI auto-play. C
+    controlling the enemy side. A toggles full AI-vs-AI auto-play. I
+    instantly resolves the rest of the current battle — identical rules to
+    auto-play (every remaining turn, either side, decided by ai.decide_turn
+    via Battle.run_to_completion()), just without the per-turn pacing. C
     toggles the hero card view, Esc cancels the in-progress turn (or
     quits if there's nothing to cancel).
 
@@ -174,6 +177,12 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
                     auto_play = not auto_play
                     time_since_step = 0
                     controller = None
+                elif event.key == pygame.K_i:
+                    if not battle.is_over:
+                        battle.run_to_completion()
+                        auto_play = False
+                        time_since_step = 0
+                        controller = None
                 elif event.key == pygame.K_c:
                     show_cards = not show_cards
                     # The card view needs more room than the battle view —
@@ -355,7 +364,7 @@ def _draw_sidebar(
     ]
     lines.extend(_controller_prompt_lines(battle, controller))
     lines.append("")
-    lines.append("A auto-play   C cards   ESC quit/cancel")
+    lines.append("A auto-play   I instant resolve   C cards   ESC quit/cancel")
     lines.append("")
     lines.append("-- Heroes --")
     for hero in battle.all_heroes:

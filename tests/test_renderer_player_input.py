@@ -120,6 +120,44 @@ def test_skip_move_and_skip_ability_ends_turn_as_a_pass() -> None:
     assert battle.last_log.description == "Actor passes"
 
 
+def test_instant_resolve_key_runs_the_battle_to_completion() -> None:
+    battle, _actor, _enemy = _build_1v1_battle()
+
+    pygame.init()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_i))
+
+    renderer.run(battle, max_frames=2)
+
+    assert battle.is_over
+    assert battle.winner in ("player", "enemy")
+
+
+def test_instant_resolve_key_abandons_an_in_progress_player_turn() -> None:
+    battle, _actor, _enemy = _build_1v1_battle()
+
+    pygame.init()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_TAB))  # mid-turn selection
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_i))
+
+    renderer.run(battle, max_frames=2)
+
+    assert battle.is_over
+
+
+def test_instant_resolve_key_is_a_noop_once_the_battle_is_already_over() -> None:
+    battle, _actor, _enemy = _build_1v1_battle()
+    battle.winner = "player"
+    battle.is_over = True
+    turn_index_before = battle.turn_index
+
+    pygame.init()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_i))
+
+    renderer.run(battle, max_frames=2)
+
+    assert battle.turn_index == turn_index_before
+
+
 def _make_player_hero(name: str, position: Position) -> Hero:
     return Hero(
         name=name,
