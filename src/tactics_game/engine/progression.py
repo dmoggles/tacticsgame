@@ -112,7 +112,14 @@ def generate_enemy_squad(rng: random.Random, battle_index: int = 0) -> list[Hero
     level-ups (3-4 vs 5) to soften early difficulty so sessions reach the back half.
     """
     enemy_count = compute_enemy_squad_size(battle_index)
-    level_ups = 2 if battle_index == 0 else (3 if battle_index == 1 else config.SYNTHESIS_LEVEL_UPS)
+    if battle_index == 0:
+        level_ups = 2
+    elif battle_index == 1:
+        level_ups = 3
+    elif battle_index == 2:
+        level_ups = 4
+    else:
+        level_ups = config.SYNTHESIS_LEVEL_UPS
     row_step = max(2, config.GRID_HEIGHT // (enemy_count + 1))
     squad: list[Hero] = []
     for i in range(enemy_count):
