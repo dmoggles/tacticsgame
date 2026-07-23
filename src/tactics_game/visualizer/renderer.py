@@ -84,6 +84,13 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
             # too, but this loop shouldn't rely on that alone.
             if session is not None and not session.is_over and session.current_battle is battle:
                 session.advance()
+                if not session.is_over and session.current_battle is None:
+                    # TODO(phase2b step4): field via the between-battle
+                    # squad-selection screen instead of always fielding the
+                    # first FIELDED_SQUAD_SIZE roster members — that screen
+                    # doesn't exist yet (docs/04_phase2b_definition.md
+                    # section 6).
+                    session.begin_battle(session.roster[: config.FIELDED_SQUAD_SIZE])
         else:
             actor = battle.current_actor
             if actor is not None and actor.is_player_controlled and not auto_play:

@@ -19,13 +19,13 @@ def _build_battle(seed: int) -> Battle:
     grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
     player_squad = [
         create_starting_hero(f"Hero {i + 1}", Position(1, 2 + i * 3), True, rng)
-        for i in range(config.SQUAD_SIZE)
+        for i in range(config.FIELDED_SQUAD_SIZE)
     ]
     enemy_squad = [
         create_starting_hero(
             f"Enemy {i + 1}", Position(config.GRID_WIDTH - 2, 2 + i * 3), False, rng
         )
-        for i in range(config.SQUAD_SIZE)
+        for i in range(config.FIELDED_SQUAD_SIZE)
     ]
     return Battle(grid=grid, player_squad=player_squad, enemy_squad=enemy_squad, rng=rng)
 

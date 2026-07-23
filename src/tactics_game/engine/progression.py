@@ -112,7 +112,7 @@ def generate_enemy_squad(rng: random.Random) -> list[Hero]:
             is_player_controlled=False,
             rng=rng,
         )
-        for i in range(config.SQUAD_SIZE)
+        for i in range(config.FIELDED_SQUAD_SIZE)
     ]
 
 
@@ -157,31 +157,46 @@ def compute_battle_xp_pool(enemy_squad: list[Hero]) -> int:
 
 def award_battle_xp(
     fielded: list[Hero],
-    benched: list[Hero],
     enemy_squad: list[Hero],
     rng: random.Random,
-    bench_multiplier: float = config.BENCH_XP_BONUS_MULTIPLIER,
 ) -> None:
     """Track 1 XP as a per-battle pool, split evenly across `fielded`.
 
     Downed heroes need no special-casing: they're never removed from
     their squad list, so they're still in `fielded` and receive a full
-    share like anyone else — they were present. `benched` heroes receive
-    a separate bonus pool on top (not carved out of the fielded pool),
-    scaled by `bench_multiplier`; Phase 2a has no bench, so `benched` is
-    always empty in practice, but the plumbing exists now so Phase 2b's
-    bench doesn't require touching this function again.
+    share like anyone else — they were present. `Battle` (the only caller)
+    only ever knows about the fielded squad, not a roster — bench-bonus XP
+    is a separate concern only `Session` has the information to award; see
+    `award_bench_bonus_xp` and docs/adr/0006-roster-and-squad-selection.md.
     """
     pool = compute_battle_xp_pool(enemy_squad)
     if fielded:
         share = pool // len(fielded)
         for hero in fielded:
             grant_xp(hero, share, rng)
-    if benched:
-        bench_pool = round(bench_multiplier * pool)
-        bench_share = bench_pool // len(benched)
-        for hero in benched:
-            grant_xp(hero, bench_share, rng)
+
+
+def award_bench_bonus_xp(
+    benched: list[Hero],
+    enemy_squad: list[Hero],
+    rng: random.Random,
+    bench_multiplier: float = config.BENCH_XP_BONUS_MULTIPLIER,
+) -> None:
+    """Bonus Track 1 XP for benched heroes, on top of (not carved out of)
+    the fielded pool computed from the same battle's enemy squad.
+
+    Called by `Session` after a battle resolves, not by `Battle` itself —
+    only `Session` knows who was benched. `bench_multiplier` stays at 0 by
+    default (docs/04_phase2b_definition.md section 4); non-zero is exercised
+    directly in tests even though it's not the shipped default.
+    """
+    if not benched:
+        return
+    pool = compute_battle_xp_pool(enemy_squad)
+    bench_pool = round(bench_multiplier * pool)
+    bench_share = bench_pool // len(benched)
+    for hero in benched:
+        grant_xp(hero, bench_share, rng)
 
 
 def revive_downed_hero(hero: Hero) -> None:

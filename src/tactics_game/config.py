@@ -45,7 +45,17 @@ GRID_HEIGHT = 12
 MOVEMENT_RANGE = 3
 
 # --- Squad setup ---
-SQUAD_SIZE = 2
+# The player's full roster (Phase 2b) vs. how many of them can be fielded
+# in a single battle. Battle combat itself never sees the roster — it only
+# ever sees whichever subset was fielded — so nothing in engine/ may assume
+# ROSTER_SIZE == FIELDED_SQUAD_SIZE even though the current values leave
+# little room to actually bench anyone (docs/04_phase2b_definition.md
+# section 1). Enemy squads are always generated at FIELDED_SQUAD_SIZE,
+# independent of how many player heroes are actually fielded — fielding
+# fewer than the max is an intended "fight outnumbered" choice, not a
+# reduction in enemy count.
+ROSTER_SIZE = 4
+FIELDED_SQUAD_SIZE = 2
 
 # --- Enemy AI decision-making ---
 # Fraction of max HP below which an ally is considered in need of healing.

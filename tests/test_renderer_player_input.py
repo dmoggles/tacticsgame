@@ -134,9 +134,11 @@ def _make_player_hero(name: str, position: Position) -> Hero:
 
 def test_pressing_enter_after_a_won_battle_advances_the_session() -> None:
     player_squad = [
-        _make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.SQUAD_SIZE)
+        _make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3))
+        for i in range(config.FIELDED_SQUAD_SIZE)
     ]
-    session = Session(player_squad=player_squad, rng=random.Random(1), battles_total=2)
+    session = Session(roster=player_squad, rng=random.Random(1), battles_total=2)
+    session.begin_battle(player_squad)
     first_battle = session.current_battle
     assert first_battle is not None
     # Force the outcome directly rather than playing it out — this test is
@@ -175,9 +177,11 @@ def test_session_progress_does_not_run_away_after_the_session_ends() -> None:
     # to advance to). battles_won must not keep climbing past
     # battles_total on every one of those frames.
     player_squad = [
-        _make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.SQUAD_SIZE)
+        _make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3))
+        for i in range(config.FIELDED_SQUAD_SIZE)
     ]
-    session = Session(player_squad=player_squad, rng=random.Random(2), battles_total=1)
+    session = Session(roster=player_squad, rng=random.Random(2), battles_total=1)
+    session.begin_battle(player_squad)
     battle = session.current_battle
     assert battle is not None
     battle.winner = "player"

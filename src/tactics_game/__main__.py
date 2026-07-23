@@ -10,8 +10,8 @@ from .models.hero import Hero
 from .visualizer import renderer
 
 
-def build_player_squad(rng: random.Random) -> list[Hero]:
-    """A squad-size-agnostic (per config.SQUAD_SIZE) fresh player squad."""
+def build_player_roster(rng: random.Random) -> list[Hero]:
+    """A roster-size-agnostic (per config.ROSTER_SIZE) fresh player roster."""
     return [
         create_starting_hero(
             name=f"Hero {i + 1}",
@@ -19,13 +19,17 @@ def build_player_squad(rng: random.Random) -> list[Hero]:
             is_player_controlled=True,
             rng=rng,
         )
-        for i in range(config.SQUAD_SIZE)
+        for i in range(config.ROSTER_SIZE)
     ]
 
 
 def main() -> None:
     rng = random.Random()
-    session = Session(player_squad=build_player_squad(rng), rng=rng)
+    session = Session(roster=build_player_roster(rng), rng=rng)
+    # TODO(phase2b step4): field via the between-battle squad-selection
+    # screen instead of always fielding the first FIELDED_SQUAD_SIZE roster
+    # members — that screen doesn't exist yet.
+    session.begin_battle(session.roster[: config.FIELDED_SQUAD_SIZE])
     battle = session.current_battle
     assert battle is not None
     renderer.run(battle, session=session)

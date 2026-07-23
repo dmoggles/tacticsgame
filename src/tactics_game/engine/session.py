@@ -1,72 +1,114 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .. import config
 from ..models.grid import Grid, Position
 from ..models.hero import Hero
-from . import progression
+from . import progression, roster
 from .battle import Battle
 
 # A session (working term — see docs/03_phase2a_definition.md section 6) is
-# a sequence of battles fought by one persistent player squad. Enemy squads
-# are regenerated per battle (progression.generate_enemy_squad); the player
-# squad's Hero objects are reused as-is across every Battle in the session,
-# which is how attributes/level/xp/class_xp persist — no separate save/load
-# mechanism exists or is needed (a session lives entirely in memory).
+# a sequence of battles fought by one persistent player roster. Enemy squads
+# are regenerated per battle (progression.generate_enemy_squad); the roster's
+# Hero objects are reused as-is across every Battle in the session, which is
+# how attributes/level/xp/class_xp persist — no separate save/load mechanism
+# exists or is needed (a session lives entirely in memory).
+#
+# Phase 2b (docs/04_phase2b_definition.md section 1-2) makes the roster
+# larger than what's fielded per battle, and fielding a specific subset is a
+# player choice made before every battle — so, unlike Phase 2a, Session can
+# no longer auto-start the next battle on construction/advance(). See
+# docs/adr/0006-roster-and-squad-selection.md, which supersedes ADR 0004's
+# auto-start flow.
+
+
+def _field_first_available(roster_: list[Hero]) -> list[Hero]:
+    """Default squad-selection strategy for headless use (run_to_completion):
+    field the first config.FIELDED_SQUAD_SIZE roster members every battle.
+    Matches Phase 2a's behavior exactly when roster size == fielded size, so
+    existing full-auto tests don't need to supply a real strategy."""
+    return roster_[: config.FIELDED_SQUAD_SIZE]
 
 
 @dataclass
 class Session:
-    player_squad: list[Hero]
+    roster: list[Hero]
     rng: random.Random = field(default_factory=random.Random)
     battles_total: int = config.SESSION_BATTLE_COUNT
     battles_won: int = 0
     current_battle: Battle | None = field(default=None, init=False)
+    fielded: list[Hero] = field(default_factory=list, init=False)
+    benched: list[Hero] = field(default_factory=list, init=False)
     is_over: bool = field(default=False, init=False)
     result: str | None = field(default=None, init=False)  # "won" | "lost"
 
-    def __post_init__(self) -> None:
-        self._prepare_next_battle()
+    def begin_battle(self, fielded: list[Hero]) -> None:
+        """Choose which roster heroes fight the next battle
+        (docs/04_phase2b_definition.md section 2). Must be called before the
+        first battle and again after every advance() that doesn't end the
+        session — Session never fields anyone on its own.
+        """
+        if self.is_over:
+            raise ValueError("session is already over")
+        if self.current_battle is not None and not self.current_battle.is_over:
+            raise ValueError("current battle is still in progress")
+        self.benched = roster.select_fielded_squad(self.roster, fielded)
+        self.fielded = fielded
+        self._prepare_battle()
 
     def advance(self) -> None:
         """Call once `self.current_battle.is_over`. Scores the finished
-        battle and either starts the next one or ends the session.
+        battle (including bench-bonus XP, which only Session can award —
+        see progression.award_bench_bonus_xp) and either ends the session or
+        clears `current_battle`, awaiting the next begin_battle() call.
 
-        A no-op once `is_over` — ending a session doesn't advance
-        `current_battle` to anything new (there's nothing left to play),
-        so a caller that doesn't stop calling this once the session is
-        over would otherwise keep re-scoring the same finished battle
-        forever (battles_won incrementing without bound).
+        A no-op once `is_over` — ending a session doesn't clear
+        `current_battle` to something new to advance into, so a caller that
+        doesn't stop calling this once the session is over would otherwise
+        keep re-scoring the same finished battle forever (battles_won
+        incrementing without bound).
         """
         if self.is_over:
             return
         battle = self.current_battle
         assert battle is not None and battle.is_over
+        if battle.winner == "player" and self.benched:
+            progression.award_bench_bonus_xp(self.benched, battle.enemy_squad, self.rng)
         if battle.winner == "enemy":
             self.is_over = True
             self.result = "lost"
+            self.current_battle = None
             return
         self.battles_won += 1
         if self.battles_won >= self.battles_total:
             self.is_over = True
             self.result = "won"
+            self.current_battle = None
             return
-        self._prepare_next_battle()
+        self.current_battle = None
 
-    def run_to_completion(self) -> None:
-        """Headless convenience, mirroring Battle.run_to_completion."""
+    def run_to_completion(self, select_fielded: Callable[[list[Hero]], list[Hero]] | None = None) -> None:
+        """Headless convenience, mirroring Battle.run_to_completion. Chooses
+        a squad before every battle via `select_fielded` (roster -> fielded
+        heroes), defaulting to `_field_first_available`."""
+        select = select_fielded or _field_first_available
         while not self.is_over:
+            if self.current_battle is None:
+                self.begin_battle(select(self.roster))
             assert self.current_battle is not None
             self.current_battle.run_to_completion()
             self.advance()
 
-    def _prepare_next_battle(self) -> None:
-        """Cooldowns and positions reset per battle; HP restoration is
-        gated behind config.FULL_HEAL_BETWEEN_BATTLES (see its docstring —
-        a Phase 2a placeholder for Phase 2b's gradual recovery)."""
-        for index, hero in enumerate(self.player_squad):
+    def _prepare_battle(self) -> None:
+        """Cooldowns and positions reset for whoever's fielded this battle;
+        HP restoration is gated behind config.FULL_HEAL_BETWEEN_BATTLES (see
+        its docstring — a Phase 2a placeholder for Phase 2b's gradual
+        recovery, step 2). Benched heroes are untouched here — they never
+        enter a Battle, so nothing about them needs resetting."""
+        for index, hero in enumerate(self.fielded):
             hero.cooldowns = {}
             hero.position = Position(1, 2 + index * 3)
             if config.FULL_HEAL_BETWEEN_BATTLES:
@@ -74,5 +116,5 @@ class Session:
         grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
         enemy_squad = progression.generate_enemy_squad(self.rng)
         self.current_battle = Battle(
-            grid=grid, player_squad=self.player_squad, enemy_squad=enemy_squad, rng=self.rng
+            grid=grid, player_squad=self.fielded, enemy_squad=enemy_squad, rng=self.rng
         )

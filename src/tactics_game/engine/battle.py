@@ -165,9 +165,10 @@ class Battle:
     def _resolve_battle_end(self) -> None:
         """Track 1 XP (victory only) and downed-hero revival (regardless
         of outcome — a downed hero shouldn't stay stuck at 0 HP as an
-        engine-state matter). Phase 2a has no bench, so `benched` is
-        always empty here."""
+        engine-state matter). `Battle` only ever knows about the fielded
+        squad, not a roster, so bench-bonus XP is awarded separately by
+        `Session` once this battle resolves (see progression.award_bench_bonus_xp)."""
         if self.winner == "player":
-            progression.award_battle_xp(self.player_squad, [], self.enemy_squad, self.rng)
+            progression.award_battle_xp(self.player_squad, self.enemy_squad, self.rng)
         for hero in self.player_squad:
             progression.revive_downed_hero(hero)
