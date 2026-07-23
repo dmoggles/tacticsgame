@@ -124,8 +124,7 @@ def grant_xp(hero: Hero, amount: int, rng: random.Random) -> None:
         _level_up(hero, rng)
 
 
-def _level_up(hero: Hero, rng: random.Random) -> None:
-    allocation = allocate_points(hero.hidden_affinity, config.POINTS_PER_LEVEL_UP, rng)
+def _apply_attribute_points(hero: Hero, allocation: dict[AttributeName, int]) -> None:
     old_max_hp = hero.max_hp
     hero.attributes = hero.attributes.with_bonus(
         might=allocation[AttributeName.MIGHT],
@@ -133,9 +132,43 @@ def _level_up(hero: Hero, rng: random.Random) -> None:
         resolve=allocation[AttributeName.RESOLVE],
         agility=allocation[AttributeName.AGILITY],
     )
-    hero.level += 1
     hero.max_hp = compute_max_hp(hero.attributes)
     hero.current_hp += hero.max_hp - old_max_hp
+
+
+def _level_up(hero: Hero, rng: random.Random) -> None:
+    """Applies a level-up's automatic, affinity-weighted points immediately
+    (docs/04_phase2b_definition.md section 5: "the remaining 2 ... as
+    currently implemented"). The manual point is deliberately deferred —
+    queued via `pending_level_ups` and resolved later by
+    `resolve_manual_allocation`, typically on the between-battle screen,
+    never mid-battle."""
+    auto_points = config.POINTS_PER_LEVEL_UP - config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
+    allocation = allocate_points(hero.hidden_affinity, auto_points, rng)
+    _apply_attribute_points(hero, allocation)
+    hero.level += 1
+    hero.pending_level_ups += 1
+
+
+def resolve_manual_allocation(
+    hero: Hero, attribute: AttributeName | None, rng: random.Random
+) -> None:
+    """Resolve one pending level-up's manual point (docs/04_phase2b_definition.md
+    section 5). `attribute=None` means the player declined/skipped — the
+    point is allocated by affinity like the others rather than forfeited.
+    A multi-level jump queues several pending level-ups at once; call this
+    once per pending level-up, in sequence.
+    """
+    if hero.pending_level_ups <= 0:
+        raise ValueError(f"{hero.name} has no pending level-up to resolve")
+    manual_points = config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
+    if attribute is None:
+        allocation = allocate_points(hero.hidden_affinity, manual_points, rng)
+    else:
+        allocation = {name: 0 for name in AttributeName}
+        allocation[attribute] = manual_points
+    _apply_attribute_points(hero, allocation)
+    hero.pending_level_ups -= 1
 
 
 def compute_enemy_strength(enemy_squad: list[Hero]) -> int:

@@ -3,6 +3,8 @@ from __future__ import annotations
 import random
 import statistics
 
+import pytest
+
 from tactics_game import config
 from tactics_game.engine import progression
 from tactics_game.models.attributes import AffinityVector, AttributeName, Attributes
@@ -59,16 +61,20 @@ def _make_hero_with_affinity(affinity: AffinityVector) -> Hero:
     )
 
 
-def test_level_up_grants_points_weighted_fully_toward_a_single_attribute() -> None:
+def test_level_up_applies_automatic_points_immediately_and_queues_the_manual_one() -> None:
     hero = _make_hero_with_affinity(AffinityVector(might=1.0, focus=0.0, resolve=0.0, agility=0.0))
     rng = random.Random(0)
+    auto_points = config.POINTS_PER_LEVEL_UP - config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
 
     old_max_hp = hero.max_hp
     progression.grant_xp(hero, config.XP_LEVEL_THRESHOLD, rng)
 
     assert hero.level == 2
     assert hero.xp == 0
-    assert hero.attributes.might == 1 + config.POINTS_PER_LEVEL_UP
+    assert hero.pending_level_ups == 1
+    # Only the automatic points are applied yet — the manual one is still
+    # pending, not forfeited.
+    assert hero.attributes.might == 1 + auto_points
     assert hero.attributes.focus == 1
     assert hero.attributes.resolve == 1
     assert hero.attributes.agility == 1
@@ -84,6 +90,59 @@ def test_grant_xp_applies_every_level_crossed_in_one_call() -> None:
 
     assert hero.level == 3
     assert hero.xp == 5
+    assert hero.pending_level_ups == 2
+
+
+def test_resolve_manual_allocation_applies_the_chosen_attribute() -> None:
+    # Affinity weighted fully toward focus, so the automatic points went
+    # there — the manual choice picks a different attribute regardless.
+    hero = _make_hero_with_affinity(AffinityVector(might=0.0, focus=1.0, resolve=0.0, agility=0.0))
+    rng = random.Random(2)
+    progression.grant_xp(hero, config.XP_LEVEL_THRESHOLD, rng)
+    might_before_manual = hero.attributes.might
+    max_hp_before_manual = hero.max_hp
+
+    progression.resolve_manual_allocation(hero, AttributeName.MIGHT, rng)
+
+    assert hero.pending_level_ups == 0
+    assert hero.attributes.might == might_before_manual + config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
+    assert hero.max_hp == max_hp_before_manual + 2 * config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
+    assert hero.current_hp == hero.max_hp
+
+
+def test_resolve_manual_allocation_falls_back_to_affinity_when_skipped() -> None:
+    hero = _make_hero_with_affinity(AffinityVector(might=1.0, focus=0.0, resolve=0.0, agility=0.0))
+    rng = random.Random(3)
+    progression.grant_xp(hero, config.XP_LEVEL_THRESHOLD, rng)
+
+    progression.resolve_manual_allocation(hero, None, rng)
+
+    # Declining doesn't forfeit the point — with affinity fully weighted to
+    # might, both the automatic and the skipped-manual point land there,
+    # totalling the full per-level-up amount.
+    assert hero.pending_level_ups == 0
+    assert hero.attributes.might == 1 + config.POINTS_PER_LEVEL_UP
+
+
+def test_resolve_manual_allocation_raises_with_nothing_pending() -> None:
+    hero = _make_hero_with_affinity(AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25))
+    rng = random.Random(4)
+
+    with pytest.raises(ValueError):
+        progression.resolve_manual_allocation(hero, AttributeName.MIGHT, rng)
+
+
+def test_multi_level_jump_resolves_one_pending_level_up_at_a_time() -> None:
+    hero = _make_hero_with_affinity(AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25))
+    rng = random.Random(5)
+    progression.grant_xp(hero, config.XP_LEVEL_THRESHOLD * 2, rng)
+    assert hero.pending_level_ups == 2
+
+    progression.resolve_manual_allocation(hero, AttributeName.MIGHT, rng)
+    assert hero.pending_level_ups == 1
+
+    progression.resolve_manual_allocation(hero, AttributeName.MIGHT, rng)
+    assert hero.pending_level_ups == 0
 
 
 def test_xp_below_threshold_does_not_level_up() -> None:

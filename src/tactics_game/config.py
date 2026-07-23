@@ -28,6 +28,13 @@ XP_POOL_PER_STRENGTH_POINT = 25
 BENCH_XP_BONUS_MULTIPLIER = 0.0
 # HP a downed hero (0 HP) revives to at battle end — "downed, not dead."
 DOWNED_REVIVE_HP = 1
+# Manual attribute allocation (docs/04_phase2b_definition.md section 5): of
+# POINTS_PER_LEVEL_UP points, this many are chosen deterministically by the
+# player instead of by affinity-weighted random draw. Fixed at 1 this phase
+# (training facilities that raise it are out of scope). Design invariant:
+# must always stay below POINTS_PER_LEVEL_UP — a hero can never reach full
+# manual allocation, so growth always stays partly affinity-driven.
+MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP = 1
 
 # --- Track 2 progression (class XP, accrual only this phase) ---
 CLASS_XP_PER_ABILITY_USE = 5

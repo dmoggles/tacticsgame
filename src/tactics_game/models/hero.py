@@ -34,6 +34,12 @@ class Hero:
     is_player_controlled: bool
     level: int = 1
     xp: int = 0
+    # Level-ups whose manual attribute point (docs/04_phase2b_definition.md
+    # section 5) hasn't been resolved yet — see
+    # engine/progression.py::resolve_manual_allocation. The automatic
+    # affinity-weighted points already applied by the time this increments;
+    # only the deterministic point is deferred.
+    pending_level_ups: int = 0
     class_xp: dict[ClassTrack, int] = field(
         default_factory=lambda: {track: 0 for track in ClassTrack}
     )
