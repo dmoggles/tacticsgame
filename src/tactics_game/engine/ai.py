@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import copy
-import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .. import config
 from ..models.grid import Position
+from . import queries
 
 if TYPE_CHECKING:
     from ..models.ability import Ability
@@ -77,7 +76,7 @@ def _decide_heal(
     if heal_decision is not None:
         return TurnDecision(destination=None, ability_decision=heal_decision)
 
-    occupied = _occupied_positions(actor, allies, enemies)
+    occupied = queries.occupied_positions(actor, allies, enemies)
     destination = _step_toward(actor.position, most_injured.position, grid, occupied)
     heal_decision = _best_heal_decision(actor, destination, living_allies)
     if heal_decision is not None:
@@ -98,7 +97,7 @@ def _decide_attack(
     nearest = min(
         living_enemies, key=lambda enemy: actor.position.distance_to(enemy.position)
     )
-    occupied = _occupied_positions(actor, allies, enemies)
+    occupied = queries.occupied_positions(actor, allies, enemies)
     destination = _step_toward(actor.position, nearest.position, grid, occupied)
     moved_best = _best_offensive_decision(actor, destination, living_enemies)
 
@@ -124,21 +123,17 @@ def _best_heal_decision(
     caster: Hero, position: Position, living_allies: list[Hero]
 ) -> AbilityDecision | None:
     heal_ability = next(
-        (
-            ability
-            for ability in caster.abilities
-            if ability.targets_ally and not _on_cooldown(caster, ability)
-        ),
+        (ability for ability in queries.usable_abilities(caster) if ability.targets_ally),
         None,
     )
     if heal_ability is None:
         return None
 
+    legal_targets = queries.valid_targets(caster, heal_ability, position, living_allies, [])
     in_range = [
         ally
-        for ally in living_allies
+        for ally in legal_targets
         if ally.current_hp / ally.max_hp < config.HEAL_TRIGGER_HP_FRACTION
-        and heal_ability.min_range <= position.distance_to(ally.position) <= heal_ability.range
     ]
     if not in_range:
         return None
@@ -152,48 +147,16 @@ def _best_offensive_decision(
     """The strongest reachable attack from `position`, scored by expected
     damage (a killing blow always outranks raw damage maximization)."""
     best: tuple[AbilityDecision, int] | None = None
-    for ability in caster.abilities:
-        if ability.targets_ally or _on_cooldown(caster, ability):
+    for ability in queries.usable_abilities(caster):
+        if ability.targets_ally:
             continue
-        for enemy in living_enemies:
-            distance = position.distance_to(enemy.position)
-            if not (ability.min_range <= distance <= ability.range):
-                continue
-            damage = _preview_magnitude(caster, ability, enemy)
+        for enemy in queries.valid_targets(caster, ability, position, [], living_enemies):
+            result = queries.preview_ability_outcome(caster, ability, enemy)
+            damage = result.damage + result.healing
             score = damage + (config.AI_KILL_SCORE_BONUS if damage >= enemy.current_hp else 0)
             if best is None or score > best[1]:
                 best = (AbilityDecision(ability=ability, target=enemy), score)
     return best
-
-
-def _on_cooldown(caster: Hero, ability: Ability) -> bool:
-    return caster.cooldowns.get(ability.name, 0) > 0
-
-
-def _preview_magnitude(caster: Hero, ability: Ability, target: Hero) -> int:
-    """Non-mutating preview of an ability's effect, for AI evaluation only.
-
-    Runs the real effect function against scratch copies of both caster and
-    target so the AI scores abilities using the same math the battle will
-    actually apply, without touching real engine state. Both sides must be
-    copied — not just target — since an effect component can apply to the
-    caster (e.g. a self-heal), and evaluating an option should never
-    actually apply it.
-    """
-    scratch_caster = copy.copy(caster)
-    scratch_target = copy.copy(target)
-    result = ability.effect(scratch_caster, scratch_target, random.Random())
-    return result.damage + result.healing
-
-
-def _occupied_positions(
-    actor: Hero, allies: list[Hero], enemies: list[Hero]
-) -> set[Position]:
-    return {
-        hero.position
-        for hero in (*allies, *enemies)
-        if hero is not actor and hero.is_alive
-    }
 
 
 def _step_toward(
