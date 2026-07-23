@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 
 from .. import config
-from ..engine import class_track_library
+from ..engine import class_track_library, telemetry
 from ..engine.battle import Battle
 from ..engine.hero_delta import HeroDelta
 from ..engine.session import Session
@@ -98,7 +98,10 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
             # too, but this loop shouldn't rely on that alone.
             if session is not None and not session.is_over and session.current_battle is battle:
                 session.advance()
-                if not session.is_over and session.current_battle is None:
+                if session.is_over:
+                    if config.TELEMETRY_ENABLED:
+                        telemetry.write_session_report(session)
+                elif session.current_battle is None:
                     between_battle = BetweenBattleController(session=session)
                     screen = pygame.display.set_mode(_between_battle_view_size(len(session.roster)))
 

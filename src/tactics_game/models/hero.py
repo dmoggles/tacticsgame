@@ -44,6 +44,12 @@ class Hero:
         default_factory=lambda: {track: 0 for track in ClassTrack}
     )
     cooldowns: dict[str, int] = field(default_factory=dict)  # ability name -> turns remaining
+    # Session-lifetime counts of battles this hero was fielded vs. benched
+    # for, incremented by engine/session.py::Session.begin_battle. Feeds
+    # session-end telemetry (docs/04_phase2b_definition.md section 7) —
+    # not otherwise read by gameplay logic.
+    battles_fielded: int = 0
+    battles_benched: int = 0
 
     def __post_init__(self) -> None:
         if len(self.abilities) != config.ABILITY_SLOT_COUNT:

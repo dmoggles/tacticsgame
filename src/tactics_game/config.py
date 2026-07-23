@@ -91,6 +91,10 @@ BENCHED_RECOVERY_FRACTION = 0.5
 # Number of seeded battles captured by dev_tools' AI-vs-AI regression
 # fixture (docs/03_phase2a_definition.md, build-order step 0).
 AI_BASELINE_SEED_COUNT = 10
+# Session-end telemetry dump (docs/04_phase2b_definition.md section 7) — a
+# dev artifact for correlating Track 2 specialization against hidden
+# affinity offline, not a player-facing feature. Off by default.
+TELEMETRY_ENABLED = False
 
 # --- Debug visualizer (pygame) ---
 TILE_SIZE_PX = 48

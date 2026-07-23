@@ -4,12 +4,13 @@ import os
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
+import json
 import random
 
 import pygame
 
 from tactics_game import config
-from tactics_game.engine import progression
+from tactics_game.engine import progression, telemetry
 from tactics_game.engine.battle import Battle
 from tactics_game.engine.session import Session
 from tactics_game.models.attributes import AffinityVector, Attributes
@@ -273,3 +274,44 @@ def test_between_battle_screen_key_1_resolves_a_pending_manual_allocation() -> N
     assert roster[0].attributes.might == might_before + config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
     assert session.current_battle is not None
     assert session.current_battle is not battle
+
+
+def test_session_end_writes_telemetry_when_enabled(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(config, "TELEMETRY_ENABLED", True)
+    output_path = tmp_path / "session_report.json"
+    monkeypatch.setattr(telemetry, "DEFAULT_OUTPUT_PATH", output_path)
+
+    roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.FIELDED_SQUAD_SIZE)]
+    session = Session(roster=roster, rng=random.Random(33), battles_total=1)
+    session.begin_battle(roster)
+    battle = session.current_battle
+    assert battle is not None
+    battle.winner = "player"
+    battle.is_over = True
+
+    pygame.init()
+    renderer.run(battle, max_frames=1, session=session)
+
+    assert session.is_over
+    assert output_path.exists()
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert {entry["name"] for entry in report} == {hero.name for hero in roster}
+
+
+def test_session_end_does_not_write_telemetry_by_default(tmp_path, monkeypatch) -> None:
+    output_path = tmp_path / "session_report.json"
+    monkeypatch.setattr(telemetry, "DEFAULT_OUTPUT_PATH", output_path)
+
+    roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(config.FIELDED_SQUAD_SIZE)]
+    session = Session(roster=roster, rng=random.Random(34), battles_total=1)
+    session.begin_battle(roster)
+    battle = session.current_battle
+    assert battle is not None
+    battle.winner = "player"
+    battle.is_over = True
+
+    pygame.init()
+    renderer.run(battle, max_frames=1, session=session)
+
+    assert session.is_over
+    assert not output_path.exists()

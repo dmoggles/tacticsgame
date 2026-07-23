@@ -64,6 +64,10 @@ class Session:
         self.benched = roster.select_fielded_squad(self.roster, fielded)
         self.fielded = fielded
         self._pre_battle_snapshots = [hero_delta.snapshot_hero(hero) for hero in self.roster]
+        for hero in self.fielded:
+            hero.battles_fielded += 1
+        for hero in self.benched:
+            hero.battles_benched += 1
         self._prepare_battle()
 
     def deltas(self) -> list[HeroDelta]:

@@ -376,6 +376,23 @@ def test_session_runs_end_to_end_to_a_win_or_loss() -> None:
         assert session.result in ("won", "lost")
 
 
+def test_begin_battle_tracks_battles_fielded_and_benched_per_hero() -> None:
+    roster = _make_squad(config.ROSTER_SIZE)
+    session = Session(roster=roster, rng=random.Random(19), battles_total=3)
+
+    session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])
+    _force_win(session)
+    session.advance()
+    session.begin_battle(roster[config.FIELDED_SQUAD_SIZE :])
+
+    for hero in roster[: config.FIELDED_SQUAD_SIZE]:
+        assert hero.battles_fielded == 1
+        assert hero.battles_benched == 1
+    for hero in roster[config.FIELDED_SQUAD_SIZE :]:
+        assert hero.battles_fielded == 1
+        assert hero.battles_benched == 1
+
+
 def test_deltas_are_empty_before_the_first_battle_begins() -> None:
     roster = _make_squad(config.FIELDED_SQUAD_SIZE)
     session = Session(roster=roster, rng=random.Random(20))
