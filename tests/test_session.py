@@ -7,9 +7,9 @@ import pytest
 from tactics_game import config
 from tactics_game.engine import progression
 from tactics_game.engine.session import Session
-from tactics_game.models.attributes import AffinityVector, Attributes
+from tactics_game.models.attributes import AffinityVector, AttributeName, Attributes
 from tactics_game.models.grid import Position
-from tactics_game.models.hero import Hero
+from tactics_game.models.hero import ClassTrack, Hero
 
 _DEFAULT_ATTRIBUTES = Attributes(might=1, focus=1, resolve=1, agility=1)
 
@@ -374,3 +374,55 @@ def test_session_runs_end_to_end_to_a_win_or_loss() -> None:
 
         assert session.is_over
         assert session.result in ("won", "lost")
+
+
+def test_deltas_are_empty_before_the_first_battle_begins() -> None:
+    roster = _make_squad(config.FIELDED_SQUAD_SIZE)
+    session = Session(roster=roster, rng=random.Random(20))
+
+    assert session.deltas() == []
+
+
+def test_deltas_reflect_only_the_most_recent_battle_not_accumulated_history() -> None:
+    roster = _make_squad(config.FIELDED_SQUAD_SIZE)
+    session = Session(roster=roster, rng=random.Random(21), battles_total=3)
+    hero = roster[0]
+
+    # Battle 1: level up and gain some class XP.
+    session.begin_battle(roster)
+    hero.attributes = hero.attributes.with_bonus(might=2)
+    hero.level = 2
+    hero.class_xp[ClassTrack.FIGHTER] += 7
+    _force_win(session)
+    session.advance()
+
+    deltas = session.deltas()
+    assert len(deltas) == config.FIELDED_SQUAD_SIZE
+    delta = deltas[0]
+    assert delta.leveled_up
+    assert delta.level_before == 1
+    assert delta.level_after == 2
+    assert delta.attribute_deltas[AttributeName.MIGHT] == 2
+    assert delta.class_xp_deltas[ClassTrack.FIGHTER] == 7
+    other_delta = deltas[1]
+    assert not other_delta.leveled_up
+    assert all(change == 0 for change in other_delta.attribute_deltas.values())
+
+    # Battle 2: begin_battle takes a fresh snapshot — battle 1's changes
+    # must not leak into battle 2's deltas (no accumulated history).
+    session.begin_battle(roster)
+    assert all(change == 0 for change in session.deltas()[0].attribute_deltas.values())
+    assert session.deltas()[0].class_xp_deltas[ClassTrack.FIGHTER] == 0
+    assert not session.deltas()[0].leveled_up
+
+    hero.class_xp[ClassTrack.HEALER] += 3
+    _force_win(session)
+    session.advance()
+
+    final_deltas = session.deltas()
+    assert final_deltas[0].class_xp_deltas[ClassTrack.HEALER] == 3
+    # Battle 1's Fighter XP gain is gone from this delta — it was folded
+    # into hero.class_xp permanently, but the *delta* only ever reflects
+    # the most recent begin_battle-to-now gap.
+    assert final_deltas[0].class_xp_deltas[ClassTrack.FIGHTER] == 0
+    assert not final_deltas[0].leveled_up

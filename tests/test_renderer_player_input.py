@@ -194,3 +194,82 @@ def test_session_progress_does_not_run_away_after_the_session_ends() -> None:
     assert session.is_over
     assert session.result == "won"
     assert session.battles_won == session.battles_total == 1
+
+
+def test_between_battle_screen_click_and_enter_choose_the_next_squad() -> None:
+    # A roster bigger than the fielded squad, so there's an actual choice
+    # to click through rather than the screen defaulting straight to READY.
+    roster = [
+        _make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(3)
+    ]
+    session = Session(roster=roster, rng=random.Random(30), battles_total=2)
+    session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])  # Hero 1, Hero 2
+    battle = session.current_battle
+    assert battle is not None
+    battle.winner = "player"
+    battle.is_over = True
+
+    pygame.init()
+    # Deselect Hero 1 (row 0), select Hero 3 (row 2), then confirm — all
+    # queued before run() starts, so they drain in the same frame the
+    # between-battle screen is created (mirrors how the existing turn
+    # tests queue several events ahead of a single run() call).
+    row0_center = (100, config.BETWEEN_BATTLE_TOP_PX + 30)
+    row2_center = (100, config.BETWEEN_BATTLE_TOP_PX + 2 * config.BETWEEN_BATTLE_ROW_HEIGHT_PX + 30)
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=row0_center, button=1))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=row2_center, button=1))
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+
+    renderer.run(battle, max_frames=2, session=session)
+
+    assert session.current_battle is not None
+    assert session.current_battle is not battle
+    assert session.fielded == [roster[1], roster[2]]
+    assert session.benched == [roster[0]]
+
+
+def test_between_battle_screen_waits_for_confirmation_before_starting_a_battle() -> None:
+    roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(3)]
+    session = Session(roster=roster, rng=random.Random(31), battles_total=2)
+    session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])
+    battle = session.current_battle
+    assert battle is not None
+    battle.winner = "player"
+    battle.is_over = True
+
+    pygame.init()
+    # No events posted — nothing should advance past the screen on its own.
+    renderer.run(battle, max_frames=5, session=session)
+
+    assert session.current_battle is None
+    assert not session.is_over
+    assert session.battles_won == 1
+
+
+def test_between_battle_screen_key_1_resolves_a_pending_manual_allocation() -> None:
+    roster = [_make_player_hero(f"Hero {i + 1}", Position(1, 2 + i * 3)) for i in range(2)]
+    session = Session(roster=roster, rng=random.Random(32), battles_total=2)
+    session.begin_battle(roster)
+    battle = session.current_battle
+    assert battle is not None
+    battle.winner = "player"
+    battle.is_over = True
+    # Simulate a level-up's manual point still awaiting a choice, same as
+    # progression.resolve_manual_allocation's own tests do directly.
+    roster[0].pending_level_ups = 1
+    might_before = roster[0].attributes.might
+
+    pygame.init()
+    # 1 = Might. Roster size equals FIELDED_SQUAD_SIZE here, so the screen
+    # defaults straight to READY once allocation clears — the queued ENTER
+    # confirms in the same frame, covering both the allocation prompt and
+    # the hand-off back to a playable battle in one pass.
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_1))
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+
+    renderer.run(battle, max_frames=2, session=session)
+
+    assert roster[0].pending_level_ups == 0
+    assert roster[0].attributes.might == might_before + config.MANUAL_ALLOCATION_POINTS_PER_LEVEL_UP
+    assert session.current_battle is not None
+    assert session.current_battle is not battle

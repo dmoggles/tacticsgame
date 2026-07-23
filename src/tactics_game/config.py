@@ -101,3 +101,9 @@ CARD_HEIGHT_PX = 230
 CARD_MARGIN_PX = 16
 CARD_VIEW_COLUMNS = 2
 MESSAGE_BAR_HEIGHT_PX = 90  # full-width strip below the grid for event text
+# Between-battle screen (docs/04_phase2b_definition.md section 6): one row
+# per roster hero, sized to its own content like the card view.
+BETWEEN_BATTLE_WIDTH_PX = 760
+BETWEEN_BATTLE_ROW_HEIGHT_PX = 140
+BETWEEN_BATTLE_MARGIN_PX = 16
+BETWEEN_BATTLE_TOP_PX = 70  # room for the status/instruction line(s)

@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from .. import config
 from ..models.grid import Grid, Position
 from ..models.hero import Hero
-from . import progression, roster
+from . import hero_delta, progression, roster
 from .battle import Battle
+from .hero_delta import HeroDelta, HeroSnapshot
 
 # A session (working term — see docs/03_phase2a_definition.md section 6) is
 # a sequence of battles fought by one persistent player roster. Enemy squads
@@ -44,12 +45,17 @@ class Session:
     benched: list[Hero] = field(default_factory=list, init=False)
     is_over: bool = field(default=False, init=False)
     result: str | None = field(default=None, init=False)  # "won" | "lost"
+    _pre_battle_snapshots: list[HeroSnapshot] = field(default_factory=list, init=False)
 
     def begin_battle(self, fielded: list[Hero]) -> None:
         """Choose which roster heroes fight the next battle
         (docs/04_phase2b_definition.md section 2). Must be called before the
         first battle and again after every advance() that doesn't end the
         session — Session never fields anyone on its own.
+
+        Snapshots the whole roster first, for deltas() to compare against
+        once this battle resolves — see deltas()'s docstring on why this is
+        the only "before" state Session ever keeps.
         """
         if self.is_over:
             raise ValueError("session is already over")
@@ -57,7 +63,25 @@ class Session:
             raise ValueError("current battle is still in progress")
         self.benched = roster.select_fielded_squad(self.roster, fielded)
         self.fielded = fielded
+        self._pre_battle_snapshots = [hero_delta.snapshot_hero(hero) for hero in self.roster]
         self._prepare_battle()
+
+    def deltas(self) -> list[HeroDelta]:
+        """Per-roster-hero change (level/attributes/class XP) since the
+        most recent begin_battle() call, in roster order.
+
+        Only ever compares against the single most recent snapshot —
+        docs/04_phase2b_definition.md section 6's hard requirement is "no
+        level-up history," and begin_battle() overwrites the snapshot every
+        time rather than appending to a log, so there is no history to
+        expose even in principle. Empty before the first begin_battle().
+        """
+        if len(self._pre_battle_snapshots) != len(self.roster):
+            return []
+        return [
+            hero_delta.compute_delta(snapshot, hero)
+            for snapshot, hero in zip(self._pre_battle_snapshots, self.roster)
+        ]
 
     def advance(self) -> None:
         """Call once `self.current_battle.is_over`. Scores the finished

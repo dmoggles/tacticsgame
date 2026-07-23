@@ -5,9 +5,12 @@ import pygame
 from .. import config
 from ..engine import class_track_library
 from ..engine.battle import Battle
+from ..engine.hero_delta import HeroDelta
 from ..engine.session import Session
+from ..models.attributes import AttributeName
 from ..models.grid import Grid, Position
 from ..models.hero import Hero
+from .between_battle_screen import BetweenBattleController, BetweenBattlePhase
 from .player_input import InputPhase, PlayerTurnController
 
 BACKGROUND_COLOR = (24, 24, 24)
@@ -21,8 +24,16 @@ TEXT_COLOR = (230, 230, 230)
 SELECTABLE_HIGHLIGHT_COLOR = (240, 220, 80, 110)
 REACHABLE_HIGHLIGHT_COLOR = (80, 200, 120, 90)
 TARGET_HIGHLIGHT_COLOR = (220, 80, 80, 140)
+PENDING_ALLOCATION_COLOR = (220, 160, 60)
 
 _ABILITY_SLOT_KEYS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4)
+_ATTRIBUTE_SLOT_KEYS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4)
+_ATTRIBUTE_SLOT_ORDER = (
+    AttributeName.MIGHT,
+    AttributeName.FOCUS,
+    AttributeName.RESOLVE,
+    AttributeName.AGILITY,
+)
 
 
 def run(battle: Battle, max_frames: int | None = None, session: Session | None = None) -> None:
@@ -42,10 +53,12 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
 
     `session`, if given, chains battles: `battle` must be
     `session.current_battle`. Once it ends, the session is scored
-    immediately (so its state is accurate right away), but the *displayed*
-    battle only advances to `session.current_battle` when the player
-    presses Enter — giving them a moment to see this battle's final state
-    before moving on. Omit `session` to play a single standalone battle,
+    immediately (so its state is accurate right away). If another battle is
+    coming, control hands to the between-battle screen (docs/04_phase2b_
+    definition.md section 6) — resolve any pending manual attribute
+    allocations (1-4 to choose, SPACE to let affinity decide), then click
+    roster heroes to choose the fielded squad and press Enter to start the
+    next battle. Omit `session` to play a single standalone battle,
     unchanged from before session chaining existed.
     """
     pygame.init()
@@ -63,6 +76,7 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
     time_since_step = 0
     show_cards = False
     controller: PlayerTurnController | None = None
+    between_battle: BetweenBattleController | None = None
 
     running = True
     frame_count = 0
@@ -72,7 +86,7 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
         frame_count += 1
         dt = clock.tick(60)
 
-        if battle.is_over:
+        if between_battle is None and battle.is_over:
             controller = None
             # Score the finished battle into the session immediately, once,
             # the moment it ends — session.current_battle becomes a new
@@ -85,13 +99,53 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
             if session is not None and not session.is_over and session.current_battle is battle:
                 session.advance()
                 if not session.is_over and session.current_battle is None:
-                    # TODO(phase2b step4): field via the between-battle
-                    # squad-selection screen instead of always fielding the
-                    # first FIELDED_SQUAD_SIZE roster members — that screen
-                    # doesn't exist yet (docs/04_phase2b_definition.md
-                    # section 6).
-                    session.begin_battle(session.roster[: config.FIELDED_SQUAD_SIZE])
-        else:
+                    between_battle = BetweenBattleController(session=session)
+                    screen = pygame.display.set_mode(_between_battle_view_size(len(session.roster)))
+
+        if between_battle is not None:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                    elif (
+                        between_battle is not None
+                        and between_battle.phase == BetweenBattlePhase.ALLOCATING
+                    ):
+                        attribute = _attribute_slot(event.key)
+                        if attribute is not None:
+                            between_battle.choose_manual_attribute(attribute)
+                        elif event.key == pygame.K_SPACE:
+                            between_battle.choose_manual_attribute(None)
+                    elif (
+                        between_battle is not None
+                        and event.key == pygame.K_RETURN
+                        and between_battle.is_ready
+                    ):
+                        between_battle.confirm()
+                        assert session is not None
+                        next_battle = session.current_battle
+                        assert next_battle is not None
+                        battle = next_battle
+                        between_battle = None
+                        screen = pygame.display.set_mode(battle_view_size)
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if (
+                        between_battle is not None
+                        and between_battle.phase != BetweenBattlePhase.ALLOCATING
+                    ):
+                        hero = _roster_row_at(event.pos, between_battle.session.roster)
+                        if hero is not None:
+                            between_battle.toggle_fielded(hero)
+
+            screen.fill(BACKGROUND_COLOR)
+            if between_battle is not None:
+                _draw_between_battle_screen(screen, between_battle, font)
+            pygame.display.flip()
+            continue
+
+        if not battle.is_over:
             actor = battle.current_actor
             if actor is not None and actor.is_player_controlled and not auto_play:
                 if controller is None or controller.actor is not actor:
@@ -143,10 +197,6 @@ def run(battle: Battle, max_frames: int | None = None, session: Session | None =
                     if controller is not None and controller.is_ready:
                         battle.take_turn(controller.actor, controller.build_decision())
                         controller = None
-                    elif battle.is_over and session is not None and not session.is_over:
-                        next_battle = session.current_battle
-                        assert next_battle is not None
-                        battle = next_battle
                 elif controller is not None and controller.phase == InputPhase.ACTING:
                     index = _ability_slot_key_index(event.key)
                     if index is not None and index < len(controller.actor.abilities):
@@ -454,3 +504,129 @@ def _draw_hero_card(
         surf = font.render(line, True, TEXT_COLOR)
         screen.blit(surf, (x + 8, text_y))
         text_y += 14
+
+
+def _attribute_slot(key: int) -> AttributeName | None:
+    return _ATTRIBUTE_SLOT_ORDER[_ATTRIBUTE_SLOT_KEYS.index(key)] if key in _ATTRIBUTE_SLOT_KEYS else None
+
+
+def _between_battle_view_size(roster_size: int) -> tuple[int, int]:
+    height = (
+        config.BETWEEN_BATTLE_TOP_PX
+        + roster_size * config.BETWEEN_BATTLE_ROW_HEIGHT_PX
+        + config.BETWEEN_BATTLE_MARGIN_PX
+    )
+    return config.BETWEEN_BATTLE_WIDTH_PX, height
+
+
+def _roster_row_at(pos: tuple[int, int], roster: list[Hero]) -> Hero | None:
+    x, y = pos
+    margin = config.BETWEEN_BATTLE_MARGIN_PX
+    if not (margin <= x <= config.BETWEEN_BATTLE_WIDTH_PX - margin) or y < config.BETWEEN_BATTLE_TOP_PX:
+        return None
+    index = (y - config.BETWEEN_BATTLE_TOP_PX) // config.BETWEEN_BATTLE_ROW_HEIGHT_PX
+    return roster[index] if 0 <= index < len(roster) else None
+
+
+def _format_signed(value: int) -> str:
+    return f"+{value}" if value > 0 else str(value)
+
+
+def _format_attribute_delta_line(hero: Hero, delta: HeroDelta) -> str:
+    attrs = hero.attributes
+    fields = (
+        ("Might", attrs.might, AttributeName.MIGHT),
+        ("Focus", attrs.focus, AttributeName.FOCUS),
+        ("Resolve", attrs.resolve, AttributeName.RESOLVE),
+        ("Agility", attrs.agility, AttributeName.AGILITY),
+    )
+    parts = []
+    for label, current, name in fields:
+        change = delta.attribute_deltas[name]
+        suffix = f" ({_format_signed(change)})" if change else ""
+        parts.append(f"{label} {current}{suffix}")
+    return "  ".join(parts)
+
+
+def _format_between_battle_class_xp_lines(hero: Hero, delta: HeroDelta) -> list[str]:
+    """Mirrors _format_class_xp_lines' two-per-line layout, with a delta
+    suffix when this hero's class XP moved since the last battle."""
+    entries = []
+    for track, xp in hero.class_xp.items():
+        change = delta.class_xp_deltas[track]
+        suffix = f"({_format_signed(change)})" if change else ""
+        entries.append(f"{track.value}:{xp}{suffix}")
+    return [" ".join(entries[i : i + 2]) for i in range(0, len(entries), 2)]
+
+
+def _between_battle_status_line(controller: BetweenBattleController) -> str:
+    if controller.phase == BetweenBattlePhase.ALLOCATING:
+        pending = controller.pending_hero
+        assert pending is not None
+        return (
+            f"{pending.name} leveled up! Choose a bonus attribute: "
+            "1 Might  2 Focus  3 Resolve  4 Agility   SPACE let affinity decide"
+        )
+    count = len(controller.selected)
+    action = "ENTER to start the next battle" if controller.is_ready else "select at least 1 hero"
+    return f"Select up to {config.FIELDED_SQUAD_SIZE} heroes to field ({count} selected) — click a row, {action}"
+
+
+def _draw_between_battle_screen(
+    screen: pygame.Surface, controller: BetweenBattleController, font: pygame.font.Font
+) -> None:
+    """The payoff surface of Phase 2b (docs/04_phase2b_definition.md section
+    6): squad selection and manual attribute allocation, with per-hero
+    level/attribute/class-XP deltas sourced entirely from Session.deltas()
+    — this module computes none of that itself, mirroring how battle
+    rendering never computes legality itself."""
+    session = controller.session
+    status = font.render(_between_battle_status_line(controller), True, TEXT_COLOR)
+    screen.blit(status, (config.BETWEEN_BATTLE_MARGIN_PX, config.BETWEEN_BATTLE_MARGIN_PX))
+
+    deltas = session.deltas()
+    row_width = config.BETWEEN_BATTLE_WIDTH_PX - 2 * config.BETWEEN_BATTLE_MARGIN_PX
+    row_height = config.BETWEEN_BATTLE_ROW_HEIGHT_PX - config.BETWEEN_BATTLE_MARGIN_PX
+    for index, hero in enumerate(session.roster):
+        delta = deltas[index] if index < len(deltas) else None
+        x = config.BETWEEN_BATTLE_MARGIN_PX
+        y = config.BETWEEN_BATTLE_TOP_PX + index * config.BETWEEN_BATTLE_ROW_HEIGHT_PX
+        _draw_roster_row(screen, controller, hero, delta, font, x, y, row_width, row_height)
+
+
+def _draw_roster_row(
+    screen: pygame.Surface,
+    controller: BetweenBattleController,
+    hero: Hero,
+    delta: HeroDelta | None,
+    font: pygame.font.Font,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+) -> None:
+    is_fielded = any(candidate is hero for candidate in controller.selected)
+    is_pending = controller.pending_hero is hero
+    if is_pending:
+        border_color = PENDING_ALLOCATION_COLOR
+    elif is_fielded:
+        border_color = PLAYER_COLOR
+    else:
+        border_color = GRID_LINE_COLOR
+    rect = (x, y, width, height)
+    pygame.draw.rect(screen, CARD_BACKGROUND_COLOR, rect)
+    pygame.draw.rect(screen, border_color, rect, width=2)
+
+    checkbox = "[X]" if is_fielded else "[ ]"
+    leveled = "  LEVEL UP!" if delta is not None and delta.leveled_up else ""
+    recovering = "  (recovering)" if hero.current_hp < hero.max_hp else ""
+    lines = [f"{checkbox} {hero.name}  L{hero.level}{leveled}", f"{hero.current_hp}/{hero.max_hp} HP{recovering}"]
+    if delta is not None:
+        lines.append(_format_attribute_delta_line(hero, delta))
+        lines.extend(_format_between_battle_class_xp_lines(hero, delta))
+
+    text_y = y + 6
+    for line in lines:
+        surf = font.render(line, True, TEXT_COLOR)
+        screen.blit(surf, (x + 8, text_y))
+        text_y += 16
