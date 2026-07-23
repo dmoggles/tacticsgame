@@ -119,6 +119,26 @@ def test_session_ends_in_win_once_all_battles_are_won() -> None:
     assert session.battles_won == session.battles_total
 
 
+def test_advance_is_a_noop_once_the_session_is_over() -> None:
+    # Regression: a caller that keeps calling advance() every frame after
+    # the session already ended (e.g. a UI loop that doesn't stop) must
+    # not keep re-scoring the same finished battle — battles_won should
+    # never move past battles_total, no matter how many extra calls.
+    overwhelming = Attributes(might=100, focus=100, resolve=100, agility=100)
+    squad = [_make_hero(f"Hero {i + 1}", attributes=overwhelming) for i in range(config.SQUAD_SIZE)]
+    session = Session(player_squad=squad, rng=random.Random(6), battles_total=2)
+    session.run_to_completion()
+    assert session.is_over
+    assert session.result == "won"
+    assert session.battles_won == session.battles_total
+
+    for _ in range(10):
+        session.advance()
+
+    assert session.battles_won == session.battles_total
+    assert session.result == "won"
+
+
 def test_session_ends_in_loss_when_a_battle_is_lost() -> None:
     for seed in range(3):
         fragile = Attributes(might=1, focus=1, resolve=1, agility=1)

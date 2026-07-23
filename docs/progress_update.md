@@ -181,3 +181,128 @@ class-XP routing, cooldowns, or on-screen labels.
 still applies. Additionally, and explicitly called out in ADR 0001: no
 gear/equipment scaling, no actual random/contested rolls (`rng` is
 plumbed but unused), and no multi-target/AoE ability support.
+
+## 2026-07-23 — Phase 2a: Player Agency & Battle Continuity (`docs/03_phase2a_definition.md`)
+
+Implemented in the phase doc's suggested build order (steps 0–4), each
+landing as its own commit with its own ADR where a real design decision
+was involved.
+
+**Acceptance criteria — all met:**
+
+1. `engine/queries.py` is the legal-action query API: `reachable_destinations`
+   (a real 4-connected BFS flood-fill — strictly more correct than the
+   AI's own single-path greedy walk for the general "what's reachable"
+   question), `usable_abilities`, `valid_targets` (against a hypothetical
+   position, so move-then-act evaluation and a move-preview UI can share
+   it), and `preview_ability_outcome` (a non-mutating scratch-copy
+   preview, lifted from `ai.py`). `ai.decide_turn` was refactored onto
+   this API rather than computing legality itself.
+   `tests/test_queries.py` includes a dedicated check that `ai.decide_turn`'s
+   output is always contained in what the query layer reports as legal,
+   across several constructed board states. See ADR 0002.
+2. A human can play a full battle to a win or loss through the visualizer:
+   select the active hero (click or Tab), move (click a highlighted
+   reachable tile or skip), choose an ability (1–4, cooldown-gated ones
+   marked and rejected) or skip, choose a target (click a highlighted
+   valid target), cancel any in-progress choice a stage at a time (Esc),
+   and end the turn explicitly (Enter). AI-vs-AI full auto-play (`A`)
+   still works unchanged. See ADR 0005.
+3. AI-vs-AI auto-play still runs to completion, verified against the
+   seeded baseline fixture (`tests/fixtures/ai_vs_ai_baseline.json`)
+   captured on `main` before any refactoring (build-order step 0). It
+   stayed bit-identical through the query-API refactor (step 1) and the
+   player-input work (step 4). It needed one deliberate, documented
+   regeneration after the Track 1 XP rework (step 2), since heroes no
+   longer leveling up mid-battle genuinely changes combat trajectories in
+   a small number of seeds — diffed field-by-field before regenerating to
+   confirm every delta was attributable to that mechanism and not a bug;
+   `winner` was identical across all 10 seeds throughout. See ADR 0003.
+4. `models/` and `engine/` still contain zero `pygame`/`visualizer`
+   imports — re-grepped after every step, including step 4 which only
+   ever adds to `visualizer/`.
+5. Track 1 XP is a per-battle pool (`progression.award_battle_xp`),
+   awarded once on victory and split evenly across the fielded squad;
+   `config.XP_PER_ACTION` and the per-turn accrual path in `battle.py`
+   are gone. Downed heroes get a full share (they're never removed from
+   `fielded`, so this needed no special-casing). Bench bonus XP is
+   plumbed and tested at both the default zero multiplier and an
+   explicit non-zero one, even though Phase 2a never has a non-empty
+   bench. See ADR 0003.
+6. Levelling happens at battle end; `grant_xp`'s existing multi-level-jump
+   loop handles a single large pool crossing several thresholds at once,
+   covered directly in `tests/test_progression.py`.
+7. Heroes at 0 HP are downed, not removed — `Hero.is_alive` already gated
+   turn order/targeting/occupancy correctly; the new behavior is
+   `progression.revive_downed_hero` reviving them to
+   `config.DOWNED_REVIVE_HP` at battle end (win or lose). A battle ends
+   only when a whole fielded squad is downed, tested directly.
+8. `engine/session.py::Session` runs N battles
+   (`config.SESSION_BATTLE_COUNT`) with a persistent squad to
+   session-win or battle-loss, headlessly (`tests/test_session.py`) and
+   now through the visualizer too (`__main__.py` launches a `Session`;
+   `renderer.run()` takes an optional `session` and advances to the next
+   battle on an explicit Enter press once one ends). Persistence needed
+   no serialization — the same `Hero` objects flow through every `Battle`
+   in the session, so attributes/level/xp/class_xp carry forward by
+   identity; `Session` only resets what shouldn't persist (cooldowns,
+   positions, and — behind `config.FULL_HEAL_BETWEEN_BATTLES`, an
+   explicit `# TODO(phase2b)` placeholder — HP). See ADR 0004 and ADR 0005.
+9. `uv run ty check` passes cleanly; `uv run pytest` passes all 102 tests
+   (up from 61 at the end of step 2).
+
+**Bug found via manual testing, fixed same day:** `Session.advance()`
+didn't change `current_battle` when it ended the session (there's no
+next battle to prepare on a win or loss), so a UI loop that keeps calling
+it every frame after the session is already over kept re-scoring the
+same finished battle forever — observed in practice as the sidebar's win
+counter racing far past `battles_total`. Fixed by making `advance()` a
+no-op once `is_over`, regardless of caller behavior, plus tightening the
+renderer's own guard to not rely on that alone. Regression-tested both at
+the engine level (`test_advance_is_a_noop_once_the_session_is_over`) and
+by reproducing the exact symptom through the render loop
+(`test_session_progress_does_not_run_away_after_the_session_ends`). Noted
+in ADR 0005 rather than a new ADR, since it's a correctness fix to a
+decision recorded there, not a new one.
+
+**Design notes / deviations:**
+
+- Cooldown ticking moved from "start of turn resolution" to "the instant
+  an actor becomes current" (`Battle._tick_current_actor_cooldowns`,
+  primed in `__post_init__` and at the end of `_resolve_turn`). Not
+  planned upfront — surfaced because a human can spend many UI frames
+  deciding a turn, during which `queries.usable_abilities` must already
+  reflect this turn's ticked cooldowns, not last turn's. Verified
+  behaviorally identical for the AI path (same values, just computed
+  earlier), so the baseline fixture needed no change for this. See ADR 0005.
+- `TurnDecision`/`AbilityDecision` moved from `engine/ai.py` to a new
+  `engine/turn.py` — they represent a turn's shape regardless of who
+  decided it (AI or a human via `visualizer/player_input.py`), and
+  leaving them in `ai.py` would have made the visualizer reach into
+  AI-specific internals to build one.
+- `visualizer/player_input.py::PlayerTurnController` has no `pygame`
+  import at all, despite living in `visualizer/` — it's pure interaction
+  logic (a state machine over `engine/queries.py` calls), kept separate
+  from `renderer.py`'s event-loop plumbing specifically so it's
+  unit-testable headlessly. Nearly all of the actual turn-building logic
+  lives here, not in `renderer.py`.
+- Testing a pygame UI without a way to drive a real window: three layers
+  — headless `PlayerTurnController` unit tests, pure pixel/key-mapping
+  helper tests, and one `SDL_VIDEODRIVER=dummy` integration test posting
+  scripted real `pygame` events through `renderer.run()`'s actual event
+  loop (`renderer.run()` gained an optional `max_frames` to bound it).
+  Mirrors the Phase 1 dummy-driver smoke test, but as committed automated
+  tests rather than a one-off manual script.
+
+**Deferred (per phase doc's explicit out-of-scope list, all Phase 2b):**
+roster/bench, gradual recovery, squad selection, manual attribute
+allocation, the between-battle screen, telemetry. Also still deferred,
+per the doc's beyond-Phase-2 list: Tier 1/2 archetype unlocks,
+multiclassing, Track 3 ability training, contested-roll resolution,
+consumables, secondary resources, equipment, AoE abilities, new
+abilities, meta-progression, save/load across process restarts,
+agility-driven initiative, terrain/obstacles. Within Phase 2a's own
+scope: arbitrary move/act ordering beyond move-then-act is left as a
+`# TODO` in `ai.py` (the doc explicitly allows this as a placeholder,
+not a decision), and undo of a *resolved* action was never in scope
+("cancel before commit" only).

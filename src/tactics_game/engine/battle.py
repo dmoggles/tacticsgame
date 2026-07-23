@@ -7,6 +7,7 @@ from .. import config
 from ..models.grid import Grid
 from ..models.hero import Hero
 from . import ai, progression, turn_order
+from .turn import TurnDecision
 
 
 @dataclass(frozen=True)
@@ -30,20 +31,63 @@ class Battle:
 
     def __post_init__(self) -> None:
         self._start_new_round()
+        self._tick_current_actor_cooldowns()
 
     @property
     def all_heroes(self) -> list[Hero]:
         return [*self.player_squad, *self.enemy_squad]
 
+    @property
+    def current_actor(self) -> Hero | None:
+        """Read-only: who is up next, without consuming their turn. `None`
+        once the battle is over.
+
+        For a UI to check before deciding whether to call `step()` (AI)
+        or build a `take_turn()` decision (player) — actually consuming a
+        turn always goes through `_next_actor()`, which this mirrors
+        without mutating state, so it's advisory only.
+        """
+        if self.is_over:
+            return None
+        for hero in self.current_order[self.turn_index :]:
+            if hero.is_alive:
+                return hero
+        return next(
+            (
+                hero
+                for hero in turn_order.build_turn_order(self.player_squad, self.enemy_squad)
+                if hero.is_alive
+            ),
+            None,
+        )
+
     def step(self) -> None:
-        """Advance the simulation by exactly one hero's turn."""
+        """Advance the simulation by exactly one hero's turn, AI-driven
+        for whichever side is up."""
         if self.is_over:
             return
         actor = self._next_actor()
         if actor is None:
             return
-        self._take_turn(actor)
-        self._check_win_condition()
+        allies = self.player_squad if actor.is_player_controlled else self.enemy_squad
+        enemies = self.enemy_squad if actor.is_player_controlled else self.player_squad
+        decision = ai.decide_turn(actor, allies, enemies, self.grid)
+        self._resolve_turn(actor, decision)
+
+    def take_turn(self, actor: Hero, decision: TurnDecision) -> None:
+        """Apply a specific decision for `actor` — the manual-input
+        counterpart to `step()`'s AI-driven path, for player-controlled
+        heroes when the visualizer supplies the decision instead of
+        `ai.decide_turn`. The caller is responsible for choosing a legal
+        decision (see `engine/queries.py`); like `step()`, this doesn't
+        re-validate legality, only that it's actually `actor`'s turn.
+        """
+        if self.is_over:
+            return
+        next_up = self._next_actor()
+        if next_up is not actor:
+            raise ValueError(f"It is not {actor.name}'s turn")
+        self._resolve_turn(actor, decision)
 
     def run_to_completion(self, max_steps: int = config.MAX_BATTLE_STEPS) -> None:
         steps_taken = 0
@@ -65,12 +109,10 @@ class Battle:
         self.turn_index = 0
         self.current_order = turn_order.build_turn_order(self.player_squad, self.enemy_squad)
 
-    def _take_turn(self, actor: Hero) -> None:
-        self._tick_cooldowns(actor)
-
-        allies = self.player_squad if actor.is_player_controlled else self.enemy_squad
-        enemies = self.enemy_squad if actor.is_player_controlled else self.player_squad
-        decision = ai.decide_turn(actor, allies, enemies, self.grid)
+    def _resolve_turn(self, actor: Hero, decision: TurnDecision) -> None:
+        # `actor`'s cooldowns were already ticked when they became current
+        # (see _tick_current_actor_cooldowns) — before this turn's decision
+        # (AI or, across many UI frames, a human) was made, not after.
 
         # An entity may move up to its move points AND take an action on
         # the same turn — these are independent, not mutually exclusive.
@@ -92,12 +134,22 @@ class Battle:
 
         self.last_log = TurnLog(actor_name=actor.name, description=description)
         self.turn_index += 1
+        self._check_win_condition()
+        if not self.is_over:
+            self._tick_current_actor_cooldowns()
 
-    def _tick_cooldowns(self, actor: Hero) -> None:
-        """Cooldowns count down once per the actor's own turn."""
-        for name, remaining in list(actor.cooldowns.items()):
-            if remaining > 0:
-                actor.cooldowns[name] = remaining - 1
+    def _tick_current_actor_cooldowns(self) -> None:
+        """Tick the next actor's cooldowns exactly once, right as they
+        become current — not at resolution time. Cooldowns must already
+        reflect this turn before any decision is made from them: the AI
+        decides in one shot, but a human decides across many UI frames
+        via `current_actor`/`engine/queries.py`, all of which must see
+        this turn's already-ticked state, not last turn's."""
+        actor = self.current_actor
+        if actor is not None:
+            for name, remaining in list(actor.cooldowns.items()):
+                if remaining > 0:
+                    actor.cooldowns[name] = remaining - 1
 
     def _check_win_condition(self) -> None:
         if all(not hero.is_alive for hero in self.player_squad):

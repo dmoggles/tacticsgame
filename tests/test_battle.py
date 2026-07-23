@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
 from tactics_game import config
-from tactics_game.engine import ability_library, progression
+from tactics_game.engine import ability_library, ai, progression
 from tactics_game.engine.battle import Battle
 from tactics_game.engine.progression import create_starting_hero
+from tactics_game.engine.turn import TurnDecision
 from tactics_game.models.attributes import AffinityVector, Attributes
 from tactics_game.models.grid import Grid, Position
 from tactics_game.models.hero import Hero
@@ -192,3 +195,79 @@ def test_downed_hero_is_not_removed_and_revives_at_battle_end() -> None:
     # Downed heroes still count as fielded and get a full XP share.
     assert downed_hero.xp == striker.xp
     assert downed_hero.xp > 0
+
+
+def test_current_actor_matches_what_step_would_consume_next() -> None:
+    battle = _build_battle(seed=11)
+    for _ in range(10):
+        if battle.is_over:
+            break
+        expected_actor = battle.current_actor
+        assert expected_actor is not None
+        battle.step()
+        assert battle.last_log is not None
+        assert battle.last_log.actor_name == expected_actor.name
+
+
+def test_take_turn_applies_the_same_effects_step_would() -> None:
+    battle = _build_battle(seed=12)
+    actor = battle.current_actor
+    assert actor is not None
+    allies = battle.player_squad if actor.is_player_controlled else battle.enemy_squad
+    enemies = battle.enemy_squad if actor.is_player_controlled else battle.player_squad
+    decision = ai.decide_turn(actor, allies, enemies, battle.grid)
+
+    battle.take_turn(actor, decision)
+
+    assert battle.last_log is not None
+    assert battle.last_log.actor_name == actor.name
+    assert battle.turn_index == 1
+
+
+def test_take_turn_raises_if_it_is_not_the_given_actors_turn() -> None:
+    battle = _build_battle(seed=13)
+    actor = battle.current_actor
+    assert actor is not None
+    not_yet_up = next(hero for hero in battle.all_heroes if hero is not actor)
+
+    with pytest.raises(ValueError):
+        battle.take_turn(not_yet_up, TurnDecision(destination=None, ability_decision=None))
+
+
+def test_cooldowns_are_ticked_before_the_actors_next_turn_becomes_current() -> None:
+    # Mirrors test_basic_mend_goes_on_cooldown_after_use_and_cycles_back's
+    # setup, but checks the state *before* the healer's second turn is
+    # taken — cooldowns must already be ticked by the time an actor
+    # becomes current, since a human (via the UI) decides across many
+    # frames using that state, not in one atomic step like the AI does.
+    healer = Hero(
+        name="Healer",
+        attributes=Attributes(might=1, focus=1, resolve=1, agility=1),
+        hidden_affinity=AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25),
+        abilities=progression.create_basic_kit(),
+        max_hp=100,
+        current_hp=10,
+        position=Position(0, 0),
+        is_player_controlled=True,
+    )
+    dummy = Hero(
+        name="Dummy",
+        attributes=Attributes(might=1, focus=1, resolve=1, agility=1),
+        hidden_affinity=AffinityVector(might=0.25, focus=0.25, resolve=0.25, agility=0.25),
+        abilities=progression.create_basic_kit(),
+        max_hp=1000,
+        current_hp=1000,
+        position=Position(config.GRID_WIDTH - 1, config.GRID_HEIGHT - 1),
+        is_player_controlled=False,
+    )
+    grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
+    battle = Battle(grid=grid, player_squad=[healer], enemy_squad=[dummy])
+
+    battle.step()  # Healer casts Basic Mend, goes on cooldown
+    mend_cooldown = next(
+        a for a in ability_library.load_abilities() if a.name == "Basic Mend"
+    ).cooldown
+    battle.step()  # Dummy's turn — primes Healer's cooldowns for next turn
+
+    assert battle.current_actor is healer
+    assert healer.cooldowns["Basic Mend"] == mend_cooldown - 1

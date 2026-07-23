@@ -32,7 +32,16 @@ class Session:
 
     def advance(self) -> None:
         """Call once `self.current_battle.is_over`. Scores the finished
-        battle and either starts the next one or ends the session."""
+        battle and either starts the next one or ends the session.
+
+        A no-op once `is_over` — ending a session doesn't advance
+        `current_battle` to anything new (there's nothing left to play),
+        so a caller that doesn't stop calling this once the session is
+        over would otherwise keep re-scoring the same finished battle
+        forever (battles_won incrementing without bound).
+        """
+        if self.is_over:
+            return
         battle = self.current_battle
         assert battle is not None and battle.is_over
         if battle.winner == "enemy":

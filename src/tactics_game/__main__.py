@@ -3,18 +3,16 @@ from __future__ import annotations
 import random
 
 from . import config
-from .engine.battle import Battle
 from .engine.progression import create_starting_hero
-from .models.grid import Grid, Position
+from .engine.session import Session
+from .models.grid import Position
+from .models.hero import Hero
 from .visualizer import renderer
 
 
-def build_demo_battle(seed: int | None = None) -> Battle:
-    """A squad-size-agnostic 2v2 (per config.SQUAD_SIZE) demo battle."""
-    rng = random.Random(seed)
-    grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
-
-    player_squad = [
+def build_player_squad(rng: random.Random) -> list[Hero]:
+    """A squad-size-agnostic (per config.SQUAD_SIZE) fresh player squad."""
+    return [
         create_starting_hero(
             name=f"Hero {i + 1}",
             position=Position(x=1, y=2 + i * 3),
@@ -23,21 +21,14 @@ def build_demo_battle(seed: int | None = None) -> Battle:
         )
         for i in range(config.SQUAD_SIZE)
     ]
-    enemy_squad = [
-        create_starting_hero(
-            name=f"Enemy {i + 1}",
-            position=Position(x=config.GRID_WIDTH - 2, y=2 + i * 3),
-            is_player_controlled=False,
-            rng=rng,
-        )
-        for i in range(config.SQUAD_SIZE)
-    ]
-    return Battle(grid=grid, player_squad=player_squad, enemy_squad=enemy_squad, rng=rng)
 
 
 def main() -> None:
-    battle = build_demo_battle()
-    renderer.run(battle)
+    rng = random.Random()
+    session = Session(player_squad=build_player_squad(rng), rng=rng)
+    battle = session.current_battle
+    assert battle is not None
+    renderer.run(battle, session=session)
 
 
 if __name__ == "__main__":
