@@ -3,11 +3,11 @@ from __future__ import annotations
 import random
 
 from .. import config
-from ..models.ability import Ability, ClassTrack
+from ..models.ability import Ability
 from ..models.attributes import AffinityVector, AttributeName, Attributes
 from ..models.grid import Position
-from ..models.hero import Hero
-from . import resolution
+from ..models.hero import ClassTrack, Hero
+from . import ability_library, class_track_library
 
 
 def generate_hidden_affinity(rng: random.Random) -> AffinityVector:
@@ -68,39 +68,11 @@ def compute_max_hp(attributes: Attributes) -> int:
 
 
 def create_basic_kit() -> list[Ability]:
-    """The classless Tier 0 kit every hero starts with, filling all 4 slots."""
-    return [
-        Ability(
-            name="Basic Strike",
-            class_track=ClassTrack.FIGHTER,
-            range=config.BASIC_STRIKE_RANGE,
-            targets_ally=False,
-            effect=resolution.resolve_basic_strike,
-        ),
-        Ability(
-            name="Basic Shot",
-            class_track=ClassTrack.MARKSMAN,
-            range=config.BASIC_SHOT_RANGE,
-            min_range=config.BASIC_SHOT_MIN_RANGE,
-            targets_ally=False,
-            effect=resolution.resolve_basic_shot,
-        ),
-        Ability(
-            name="Basic Bolt",
-            class_track=ClassTrack.CASTER,
-            range=config.BASIC_BOLT_RANGE,
-            targets_ally=False,
-            effect=resolution.resolve_basic_bolt,
-        ),
-        Ability(
-            name="Basic Mend",
-            class_track=ClassTrack.HEALER,
-            range=config.BASIC_MEND_RANGE,
-            cooldown=config.BASIC_MEND_COOLDOWN,
-            targets_ally=True,
-            effect=resolution.resolve_basic_mend,
-        ),
-    ]
+    """The classless Tier 0 kit every hero starts with, filling all 4 slots.
+
+    Ability data lives in data/abilities.yaml — see engine/ability_library.py.
+    """
+    return ability_library.load_abilities()
 
 
 def create_starting_hero(
@@ -152,3 +124,11 @@ def grant_class_xp(
 ) -> None:
     """Track 2 accrual only this phase — no thresholds fire, no unlocks."""
     hero.class_xp[track] += amount
+
+
+def grant_class_xp_for_ability(
+    hero: Hero, ability: Ability, amount: int = config.CLASS_XP_PER_ABILITY_USE
+) -> None:
+    """Credit whichever track owns `ability`, per data/class_tracks.yaml."""
+    track = class_track_library.load_class_tracks()[ability.name]
+    grant_class_xp(hero, track, amount)

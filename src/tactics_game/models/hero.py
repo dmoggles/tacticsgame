@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 from .. import config
-from .ability import Ability, ClassTrack
+from .ability import Ability
 from .attributes import AffinityVector, Attributes
 from .grid import Position
+
+
+class ClassTrack(str, Enum):
+    """Track 2 usage-based specialization counters (accrual only in Phase 1).
+
+    Classes own abilities, not the reverse — see engine/class_track_library.py
+    for which abilities feed each track.
+    """
+
+    FIGHTER = "fighter"
+    MARKSMAN = "marksman"
+    CASTER = "caster"
+    HEALER = "healer"
 
 
 @dataclass

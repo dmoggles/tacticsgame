@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -172,12 +173,16 @@ def _on_cooldown(caster: Hero, ability: Ability) -> bool:
 def _preview_magnitude(caster: Hero, ability: Ability, target: Hero) -> int:
     """Non-mutating preview of an ability's effect, for AI evaluation only.
 
-    Runs the real effect function against a scratch copy of the target so
-    the AI scores abilities using the same math the battle will actually
-    apply, without touching real engine state.
+    Runs the real effect function against scratch copies of both caster and
+    target so the AI scores abilities using the same math the battle will
+    actually apply, without touching real engine state. Both sides must be
+    copied — not just target — since an effect component can apply to the
+    caster (e.g. a self-heal), and evaluating an option should never
+    actually apply it.
     """
+    scratch_caster = copy.copy(caster)
     scratch_target = copy.copy(target)
-    result = ability.effect(caster, scratch_target)
+    result = ability.effect(scratch_caster, scratch_target, random.Random())
     return result.damage + result.healing
 
 

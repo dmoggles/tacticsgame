@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from tactics_game import config
-from tactics_game.engine import ai, progression
+from tactics_game.engine import ai, progression, resolution
+from tactics_game.models.ability import Ability
 from tactics_game.models.attributes import AffinityVector, Attributes
 from tactics_game.models.grid import Grid, Position
 from tactics_game.models.hero import Hero
@@ -111,3 +112,32 @@ def test_decide_turn_passes_when_nothing_to_do() -> None:
 
     assert decision.destination is None
     assert decision.ability_decision is None
+
+
+def test_preview_magnitude_does_not_mutate_caster_or_target() -> None:
+    # A synthetic ability with a component that heals the caster — the AI's
+    # non-mutating preview must scratch-copy the caster too, not just the
+    # target, or "evaluating" this option would actually apply the heal.
+    component = resolution.EffectComponent(
+        kind="heal",
+        base=5,
+        scaling=[resolution.ScalingTerm(attribute="resolve", multiplier=0)],
+        verb="basks in victory, healing",
+        applies_to="caster",
+    )
+    ability = Ability(
+        name="Test Self-Heal Strike",
+        range=1,
+        targets_ally=False,
+        effect=resolution.make_effect([component]),
+    )
+    caster = _make_hero("Caster", Position(0, 0), current_hp=10, max_hp=20)
+    target = _make_hero(
+        "Target", Position(1, 0), current_hp=10, max_hp=20, is_player_controlled=False
+    )
+
+    magnitude = ai._preview_magnitude(caster, ability, target)
+
+    assert magnitude == 5
+    assert caster.current_hp == 10
+    assert target.current_hp == 10

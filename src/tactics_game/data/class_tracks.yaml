@@ -1,0 +1,16 @@
+# Classes own abilities, not the reverse — read by progression.py to know
+# which Track 2 counter to credit when an ability is used. Every id listed
+# here must exist in abilities.yaml, and every ability in abilities.yaml
+# must appear in exactly one track (both validated at load time).
+#
+# A track can list more than one ability id once Tier 1 archetypes grant
+# additional actions — no schema change needed then.
+class_tracks:
+  fighter:
+    - basic_strike
+  marksman:
+    - basic_shot
+  caster:
+    - basic_bolt
+  healer:
+    - basic_mend

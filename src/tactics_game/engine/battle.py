@@ -82,8 +82,8 @@ class Battle:
             )
         if decision.ability_decision is not None:
             ability = decision.ability_decision.ability
-            result = ability.effect(actor, decision.ability_decision.target)
-            progression.grant_class_xp(actor, ability.class_track)
+            result = ability.effect(actor, decision.ability_decision.target, self.rng)
+            progression.grant_class_xp_for_ability(actor, ability)
             if ability.cooldown > 0:
                 actor.cooldowns[ability.name] = ability.cooldown
             segments.append(result.description)

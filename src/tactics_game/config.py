@@ -21,23 +21,11 @@ XP_LEVEL_THRESHOLD = 50
 # --- Track 2 progression (class XP, accrual only this phase) ---
 CLASS_XP_PER_ABILITY_USE = 5
 
-# --- Basic ability kit: deterministic Phase 1 placeholder values, scaled by
-# the attribute matching each ability's archetype (see resolution.py) ---
-BASIC_STRIKE_DAMAGE = 5
-BASIC_STRIKE_RANGE = 1
-BASIC_STRIKE_MIGHT_SCALING = 1  # Fighter: melee power
-BASIC_SHOT_DAMAGE = 4
-BASIC_SHOT_RANGE = 4
-BASIC_SHOT_MIN_RANGE = 2  # can't be fired point-blank
-BASIC_SHOT_AGILITY_SCALING = 1  # Marksman: ranged precision
-BASIC_BOLT_DAMAGE = 4
-BASIC_BOLT_RANGE = 4
-BASIC_BOLT_FOCUS_SCALING = 1  # Caster: spellpower
-BASIC_MEND_HEAL = 6
-BASIC_MEND_RANGE = 3
-BASIC_MEND_RESOLVE_SCALING = 0.5  # Healer: force of will
-BASIC_MEND_COOLDOWN = 3  # turns before it can be used again
-
+# --- Basic ability kit ---
+# Per-ability data (range, cooldown, damage/heal scaling, etc.) lives in
+# data/abilities.yaml — see engine/ability_library.py. Only the kit-shape
+# invariant lives here, since it's enforced by Hero itself, not per-ability
+# data.
 ABILITY_SLOT_COUNT = 4
 
 # --- Battle grid ---
