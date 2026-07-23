@@ -88,6 +88,7 @@ class Session:
             self.result = "won"
             self.current_battle = None
             return
+        self._apply_recovery()
         self.current_battle = None
 
     def run_to_completion(self, select_fielded: Callable[[list[Hero]], list[Hero]] | None = None) -> None:
@@ -102,17 +103,28 @@ class Session:
             self.current_battle.run_to_completion()
             self.advance()
 
+    def _apply_recovery(self) -> None:
+        """Gradual recovery (docs/04_phase2b_definition.md section 3): every
+        roster hero heals a fraction of max_hp based on whether they were
+        fielded or benched in the battle that just ended — benched heals
+        substantially faster. Runs once per "between battles" gap, so it's
+        called only when another battle is actually coming (not on the
+        battle that ends the session — there's nothing to recover for)."""
+        for hero in self.fielded:
+            progression.recover_hp(hero, config.FIELDED_RECOVERY_FRACTION)
+        for hero in self.benched:
+            progression.recover_hp(hero, config.BENCHED_RECOVERY_FRACTION)
+
     def _prepare_battle(self) -> None:
-        """Cooldowns and positions reset for whoever's fielded this battle;
-        HP restoration is gated behind config.FULL_HEAL_BETWEEN_BATTLES (see
-        its docstring — a Phase 2a placeholder for Phase 2b's gradual
-        recovery, step 2). Benched heroes are untouched here — they never
-        enter a Battle, so nothing about them needs resetting."""
+        """Cooldowns and positions reset for whoever's fielded this battle.
+        HP is untouched here — gradual recovery already ran in advance()
+        before this was called; a fresh roster's heroes start at max_hp by
+        construction (create_starting_hero). Benched heroes are untouched
+        entirely — they never enter a Battle, so nothing about them needs
+        resetting."""
         for index, hero in enumerate(self.fielded):
             hero.cooldowns = {}
             hero.position = Position(1, 2 + index * 3)
-            if config.FULL_HEAL_BETWEEN_BATTLES:
-                hero.current_hp = hero.max_hp
         grid = Grid(width=config.GRID_WIDTH, height=config.GRID_HEIGHT)
         enemy_squad = progression.generate_enemy_squad(self.rng)
         self.current_battle = Battle(

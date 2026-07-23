@@ -206,6 +206,16 @@ def revive_downed_hero(hero: Hero) -> None:
         hero.current_hp = config.DOWNED_REVIVE_HP
 
 
+def recover_hp(hero: Hero, fraction: float) -> None:
+    """Between-battle HP recovery: heal `fraction` of max_hp, capped at
+    max_hp. The same function whether `hero` was merely bruised or just
+    revived at config.DOWNED_REVIVE_HP — no separate injury system, "she's
+    been on the bench three fights" falls out of HP alone
+    (docs/04_phase2b_definition.md section 3)."""
+    healed = round(fraction * hero.max_hp)
+    hero.current_hp = min(hero.max_hp, hero.current_hp + healed)
+
+
 def grant_class_xp(
     hero: Hero, track: ClassTrack, amount: int = config.CLASS_XP_PER_ABILITY_USE
 ) -> None:

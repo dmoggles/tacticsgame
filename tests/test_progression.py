@@ -188,3 +188,35 @@ def test_award_bench_bonus_xp_is_a_noop_with_no_benched_heroes() -> None:
 
     # Must not raise (e.g. a division by zero on an empty benched list).
     progression.award_bench_bonus_xp([], enemy_squad, rng, bench_multiplier=0.5)
+
+
+def test_recover_hp_heals_a_fraction_of_max_hp() -> None:
+    hero = _make_leveled_hero("Recovering", 1)
+    hero.current_hp = 1
+
+    progression.recover_hp(hero, 0.5)
+
+    assert hero.current_hp == 1 + round(0.5 * hero.max_hp)
+
+
+def test_recover_hp_never_exceeds_max_hp() -> None:
+    hero = _make_leveled_hero("AlmostFull", 1)
+    hero.current_hp = hero.max_hp - 1
+
+    progression.recover_hp(hero, 1.0)
+
+    assert hero.current_hp == hero.max_hp
+
+
+def test_recover_hp_heals_a_hero_from_the_downed_revive_floor() -> None:
+    # No separate injury system: a hero just revived at DOWNED_REVIVE_HP
+    # climbs back via the exact same function as any other damage.
+    hero = _make_leveled_hero("Downed", 1)
+    hero.current_hp = 0
+
+    progression.revive_downed_hero(hero)
+    assert hero.current_hp == config.DOWNED_REVIVE_HP
+
+    progression.recover_hp(hero, config.BENCHED_RECOVERY_FRACTION)
+
+    assert hero.current_hp > config.DOWNED_REVIVE_HP

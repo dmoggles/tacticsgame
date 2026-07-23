@@ -70,11 +70,15 @@ MAX_BATTLE_STEPS = 500
 
 # --- Session chaining ---
 SESSION_BATTLE_COUNT = 5
-# Between-battle HP restoration. True = full heal (Phase 2a placeholder).
-# TODO(phase2b): replace with gradual recovery from downed state; full
-# heal exists only so Phase 2a doesn't produce a death spiral without a
-# bench to rotate injured heroes out.
-FULL_HEAL_BETWEEN_BATTLES = True
+# Gradual recovery (docs/04_phase2b_definition.md section 3): between
+# battles, every roster hero heals a fraction of their max HP, at a rate
+# set by whether they were fielded or benched in the battle just fought.
+# Benched heals substantially faster — sitting out is the mechanism by
+# which a hero returns to full strength, including one revived at
+# DOWNED_REVIVE_HP; there is no separate injury system. Both fractions are
+# placeholders.
+FIELDED_RECOVERY_FRACTION = 0.15
+BENCHED_RECOVERY_FRACTION = 0.5
 
 # --- Dev tooling ---
 # Number of seeded battles captured by dev_tools' AI-vs-AI regression

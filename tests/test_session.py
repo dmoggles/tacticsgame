@@ -141,7 +141,7 @@ def test_cooldowns_and_positions_reset_between_battles_for_fielded_heroes() -> N
     assert roster[1].position == Position(1, 5)
 
 
-def test_hp_fully_heals_between_battles_for_fielded_heroes() -> None:
+def test_fielded_heroes_recover_a_fraction_of_max_hp_between_battles() -> None:
     roster = _make_squad(config.FIELDED_SQUAD_SIZE)
     roster[0].current_hp = 1
     session = Session(roster=roster, rng=random.Random(7), battles_total=2)
@@ -149,15 +149,70 @@ def test_hp_fully_heals_between_battles_for_fielded_heroes() -> None:
     _force_win(session)
 
     session.advance()
-    session.begin_battle(session.roster)
 
-    assert roster[0].current_hp == roster[0].max_hp
+    assert roster[0].current_hp == 1 + round(config.FIELDED_RECOVERY_FRACTION * roster[0].max_hp)
+
+
+def test_benched_heroes_recover_faster_than_fielded_heroes() -> None:
+    roster = _make_squad(config.ROSTER_SIZE)
+    for hero in roster:
+        hero.current_hp = 1
+    session = Session(roster=roster, rng=random.Random(14), battles_total=2)
+    session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])
+    fielded, benched = list(session.fielded), list(session.benched)
+    _force_win(session)
+
+    session.advance()
+
+    expected_fielded_heal = round(config.FIELDED_RECOVERY_FRACTION * fielded[0].max_hp)
+    expected_benched_heal = round(config.BENCHED_RECOVERY_FRACTION * benched[0].max_hp)
+    assert expected_benched_heal > expected_fielded_heal
+    for hero in fielded:
+        assert hero.current_hp == 1 + expected_fielded_heal
+    for hero in benched:
+        assert hero.current_hp == 1 + expected_benched_heal
+
+
+def test_recovery_accumulates_for_a_hero_left_benched_across_multiple_battles() -> None:
+    roster = _make_squad(config.ROSTER_SIZE)
+    for hero in roster:
+        hero.current_hp = 1
+    session = Session(roster=roster, rng=random.Random(15), battles_total=3)
+    always_benched = roster[config.FIELDED_SQUAD_SIZE :]
+
+    expected_hp = 1
+    for _ in range(2):
+        session.begin_battle(roster[: config.FIELDED_SQUAD_SIZE])
+        _force_win(session)
+        session.advance()
+        expected_hp = min(
+            always_benched[0].max_hp,
+            expected_hp + round(config.BENCHED_RECOVERY_FRACTION * always_benched[0].max_hp),
+        )
+
+    assert always_benched[0].current_hp == expected_hp
+    assert always_benched[0].current_hp > 1
+
+
+def test_recovery_does_not_apply_on_the_battle_that_ends_the_session() -> None:
+    # Nothing to recover for — there's no next battle to prepare for.
+    roster = _make_squad(config.FIELDED_SQUAD_SIZE)
+    roster[0].current_hp = 1
+    session = Session(roster=roster, rng=random.Random(16), battles_total=1)
+    session.begin_battle(roster)
+    _force_win(session)
+
+    session.advance()
+
+    assert session.is_over
+    assert roster[0].current_hp == 1
 
 
 def test_benched_heroes_are_untouched_by_battle_preparation() -> None:
-    # Gradual recovery (Phase 2b step 2) hasn't landed yet — a benched
-    # hero's position/cooldowns/HP must stay exactly as they were, not get
-    # silently reset or healed by the fielded-only preparation step.
+    # begin_battle()'s preparation step only ever touches whoever is
+    # fielded — a benched hero's position/cooldowns/HP must stay exactly as
+    # they were, not get silently reset or healed by it. (Recovery itself
+    # happens in advance(), not here — see the recovery tests above.)
     roster = _make_squad(config.ROSTER_SIZE)
     benched_hero = roster[-1]
     benched_hero.current_hp = 1
