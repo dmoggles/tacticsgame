@@ -106,3 +106,78 @@ archetype unlocks, multiclassing, manual attribute allocation, Track 3
 ability training, contested-roll resolution, secondary resources,
 equipment, real player input, meta-progression/run structure — none of
 these were touched.
+
+## 2026-07-23 — AI, Balance & Ability-Data Refactor (post–Phase 1)
+
+Not tied to a new phase document — this is incremental refinement and an
+architectural refactor built on top of the completed Phase 1 vertical
+slice, driven by playtesting and forward-looking design needs flagged
+during the work itself. Two chunks of work landed since the last update:
+
+**Combat & AI refinements** (commit `c8457e8`, merged to `main` via PR
+#1):
+
+- Basic Shot gained a minimum range (can't fire point-blank); range
+  checks switched from Manhattan to proper Euclidean distance
+  (`Position.distance_to`) — supersedes the Phase 1 note above that
+  movement/range used Manhattan distance.
+- A turn can now move up to move points **and** take an action in the
+  same turn (previously mutually exclusive) — `ai.decide_turn` returns a
+  `TurnDecision` with independent `destination`/`ability_decision`.
+- Ability damage/healing scales with the attribute matching its
+  archetype (Might→Fighter, Agility→Marksman, Focus→Caster, Resolve→
+  Healer), so hero builds now meaningfully differentiate which ability
+  they're best at (numbers lived in `config.py` at this point; moved to
+  YAML in the second chunk below).
+- AI reworked to prefer the strongest reachable attack (scored via a
+  non-mutating preview of the real resolution math, with a kill-priority
+  bonus), fall back to a ranged attack when melee is unreachable that
+  turn, and heal a critically injured ally or self before attacking —
+  supersedes the Phase 1 note above that AI never selected heal
+  abilities.
+- Basic Mend given a 3-turn cooldown, tracked per-hero (`Hero.
+  cooldowns`) and enforced in AI targeting.
+- Debug visualizer gained a toggleable hero-card view (`C` key), sized
+  to its own content, and a full-width message bar below the grid so
+  combined move+ability event text no longer overruns the sidebar.
+
+**Ability data moved to YAML** (commit `cf37c96`, branch `feature/
+ability-data-yaml-refactor`, not yet merged): replaced per-ability
+`config.py` constants and four hand-written resolution functions with
+`data/abilities.yaml` + `data/class_tracks.yaml`, loaded and validated by
+new `engine/ability_library.py` / `engine/class_track_library.py`
+modules. Full rationale, alternatives considered, and consequences are
+recorded in `docs/adr/0001-ability-data-yaml-refactor.md` — summary:
+
+- `Ability.class_track` removed entirely; classes now own/reference
+  abilities via a separate data file, not the reverse.
+- An ability's effect is a list of components (so one ability can have
+  multiple effects, e.g. damage + self-heal), each with a list of
+  attribute-scaling terms (so one effect can scale off multiple
+  attributes) — both were previously single values.
+- `AbilityEffect` gained an unused `rng: random.Random` parameter,
+  threaded through every call site now so future semi-random/contested
+  resolution won't need a second breaking signature change.
+- Fixed a latent AI bug this design surfaced: the non-mutating attack
+  preview in `ai.py` only scratch-copied the target, not the caster —
+  safe today, but would have let a future caster-directed effect (e.g.
+  self-heal) apply for real during evaluation.
+
+Also added a persistent instruction in `CLAUDE.md` to write an ADR for
+future non-trivial design decisions, and corrected two things `CLAUDE.md`
+had gone stale on: the "no code exists yet" project-status blurb, and an
+outdated ability-effect signature reference.
+
+**Verification:** `uv run pytest` — 37 tests pass (up from 17 at Phase 1
+completion: 14 new/rewritten across `test_resolution.py`,
+`test_ability_library.py`, `test_class_track_library.py`, `test_ai.py`,
+`test_battle.py`). `uv run ty check` passes cleanly, including the new
+`pyyaml`/`types-PyYAML` dependencies. Both chunks were also verified by
+running full demo battles headlessly and by rendering the visualizer
+(`SDL_VIDEODRIVER=dummy`) to confirm no regressions in damage numbers,
+class-XP routing, cooldowns, or on-screen labels.
+
+**Deferred:** everything from the original Phase 1 deferred list above
+still applies. Additionally, and explicitly called out in ADR 0001: no
+gear/equipment scaling, no actual random/contested rolls (`rng` is
+plumbed but unused), and no multi-target/AoE ability support.
