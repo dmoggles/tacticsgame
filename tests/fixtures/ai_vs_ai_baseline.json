@@ -1,0 +1,842 @@
+[
+  {
+    "seed": 0,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 16,
+        "max_hp": 28,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 30,
+        "max_hp": 30,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 20,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 30,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 30,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 10,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 1,
+    "winner": "player",
+    "rounds": 6,
+    "steps": 16,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 30,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 10,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 2,
+        "xp": 10,
+        "current_hp": 19,
+        "max_hp": 26,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 25,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 20,
+        "current_hp": 0,
+        "max_hp": 36,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 2,
+        "xp": 0,
+        "current_hp": 0,
+        "max_hp": 22,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 10
+        }
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "winner": "player",
+    "rounds": 3,
+    "steps": 8,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 16,
+        "max_hp": 24,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 22,
+        "max_hp": 22,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 15,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 0,
+        "current_hp": 0,
+        "max_hp": 20,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 20,
+        "current_hp": 0,
+        "max_hp": 32,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 3,
+    "winner": "enemy",
+    "rounds": 7,
+    "steps": 20,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": false,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 0,
+        "max_hp": 24,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 5,
+          "marksman": 10,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": false,
+        "level": 2,
+        "xp": 20,
+        "current_hp": 0,
+        "max_hp": 22,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 25,
+          "caster": 0,
+          "healer": 10
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 20,
+        "current_hp": 0,
+        "max_hp": 38,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": true,
+        "level": 2,
+        "xp": 20,
+        "current_hp": 11,
+        "max_hp": 38,
+        "position": {
+          "x": 4,
+          "y": 4
+        },
+        "class_xp": {
+          "fighter": 25,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 10
+        }
+      }
+    ]
+  },
+  {
+    "seed": 4,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 22,
+        "max_hp": 38,
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "class_xp": {
+          "fighter": 10,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 20,
+        "max_hp": 20,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 20,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 30,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 26,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 10,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 5,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 3,
+        "max_hp": 28,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 15,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 28,
+        "max_hp": 28,
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 5,
+          "marksman": 10,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 26,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 16,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 0
+        }
+      }
+    ]
+  },
+  {
+    "seed": 6,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 14,
+        "max_hp": 24,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 18,
+        "max_hp": 18,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 20,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 34,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 34,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 10,
+          "caster": 0,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 7,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 29,
+        "max_hp": 44,
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "class_xp": {
+          "fighter": 10,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 20,
+        "max_hp": 20,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 20,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 30,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 22,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 10,
+          "caster": 0,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 8,
+    "winner": "player",
+    "rounds": 3,
+    "steps": 7,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 16,
+        "max_hp": 16,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 20,
+        "current_hp": 31,
+        "max_hp": 40,
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 5,
+          "marksman": 5,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 0,
+        "current_hp": 0,
+        "max_hp": 18,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 0
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 20,
+        "current_hp": 0,
+        "max_hp": 38,
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 5,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      }
+    ]
+  },
+  {
+    "seed": 9,
+    "winner": "player",
+    "rounds": 4,
+    "steps": 12,
+    "heroes": [
+      {
+        "name": "Hero 1",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 10,
+        "max_hp": 26,
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 15,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Hero 2",
+        "is_player_controlled": true,
+        "is_alive": true,
+        "level": 1,
+        "xp": 40,
+        "current_hp": 44,
+        "max_hp": 44,
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 5,
+          "marksman": 10,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 1",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 10,
+        "current_hp": 0,
+        "max_hp": 28,
+        "position": {
+          "x": 6,
+          "y": 2
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 0,
+          "healer": 5
+        }
+      },
+      {
+        "name": "Enemy 2",
+        "is_player_controlled": false,
+        "is_alive": false,
+        "level": 1,
+        "xp": 30,
+        "current_hp": 0,
+        "max_hp": 22,
+        "position": {
+          "x": 6,
+          "y": 5
+        },
+        "class_xp": {
+          "fighter": 0,
+          "marksman": 0,
+          "caster": 15,
+          "healer": 0
+        }
+      }
+    ]
+  }
+]

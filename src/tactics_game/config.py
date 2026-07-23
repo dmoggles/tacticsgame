@@ -47,6 +47,11 @@ AI_KILL_SCORE_BONUS = 10_000
 # unforeseen AI stalemate rather than a real game rule.
 MAX_BATTLE_STEPS = 500
 
+# --- Dev tooling ---
+# Number of seeded battles captured by dev_tools' AI-vs-AI regression
+# fixture (docs/03_phase2a_definition.md, build-order step 0).
+AI_BASELINE_SEED_COUNT = 10
+
 # --- Debug visualizer (pygame) ---
 TILE_SIZE_PX = 48
 SIDEBAR_WIDTH_PX = 340
