@@ -306,3 +306,124 @@ scope: arbitrary move/act ordering beyond move-then-act is left as a
 `# TODO` in `ai.py` (the doc explicitly allows this as a placeholder,
 not a decision), and undo of a *resolved* action was never in scope
 ("cancel before commit" only).
+
+## 2026-07-23 — Phase 2b: Roster, Recovery & Directed Growth (`docs/04_phase2b_definition.md`)
+
+Implemented in the phase doc's suggested build order (steps 1–5), each
+landing as its own commit, with an ADR wherever a real design fork was
+involved (steps 1, 3, 4) and none where the doc left no real alternative
+to weigh (steps 2, 5 — noted inline in code instead).
+
+**Acceptance criteria — all met:**
+
+1. `config.ROSTER_SIZE` (4) and `config.FIELDED_SQUAD_SIZE` (2, renamed
+   from the old overloaded `SQUAD_SIZE`) are both config constants; no
+   engine code assumes they're equal. `engine/roster.py::select_fielded_squad`
+   validates any 1..`FIELDED_SQUAD_SIZE` subset of a roster and derives the
+   benched remainder by identity (`Hero` is unhashable by construction, so
+   this can't be a dict/set operation — see ADR 0006).
+2. `Session.begin_battle(fielded)` is the only way to start a battle now —
+   no auto-selection exists anywhere in the engine (ADR 0006, superseding
+   ADR 0004's auto-start flow). Fielding fewer than the maximum is
+   supported down to 1; `tests/test_session.py::
+   test_fielding_fewer_heroes_gives_each_a_proportionally_larger_xp_share`
+   fields 1 vs. 2 heroes against an identical enemy pool (same seed, enemy
+   generation doesn't depend on player fielded count) and asserts the
+   solo hero's progress is at least double.
+3. `progression.recover_hp(hero, fraction)` replaces the old
+   `FULL_HEAL_BETWEEN_BATTLES` full-heal placeholder entirely;
+   `config.FIELDED_RECOVERY_FRACTION` (0.15) and
+   `config.BENCHED_RECOVERY_FRACTION` (0.5) are separate config'd rates,
+   applied by `Session._apply_recovery()` only when another battle is
+   actually coming (not on the battle that ends the session).
+   `tests/test_session.py::test_benched_heroes_recover_faster_than_fielded_heroes`
+   and `test_recovery_accumulates_for_a_hero_left_benched_across_multiple_battles`
+   cover both rates and multi-battle accumulation.
+4. `progression.award_bench_bonus_xp` (split out of `award_battle_xp`,
+   which is now fielded-only — see ADR 0006) is called by `Session.advance()`,
+   the only layer that actually knows who's benched. Tested at the default
+   zero multiplier and an explicit non-zero one in `tests/test_progression.py`.
+5. `progression.revive_downed_hero` (Phase 2a) and `recover_hp` (this
+   phase) needed no integration work between them — a hero revived at
+   `DOWNED_REVIVE_HP` climbs back via the exact same recovery call as any
+   other damage, no separate injury system, per
+   `tests/test_progression.py::test_recover_hp_heals_a_hero_from_the_downed_revive_floor`.
+6. `Hero.pending_level_ups` defers exactly the manual point (not the whole
+   level-up) — the 2 automatic affinity-weighted points still apply
+   immediately inside `_level_up`, keeping `grant_xp`'s `rng` usage intact
+   rather than cascading a signature change through the whole XP-awarding
+   call chain for no behavioral gain (ADR 0007).
+   `progression.resolve_manual_allocation(hero, attribute_or_None, rng)`
+   applies the deferred point, falling back to one more affinity draw
+   (never forfeiting it) when the player declines. Multi-level jumps queue
+   multiple pending level-ups, resolved one at a time — exercised directly
+   in `tests/test_progression.py` and, driven by real input, in
+   `tests/test_between_battle_screen.py` and the renderer's dummy-driver
+   tests.
+7. The between-battle screen (`visualizer/between_battle_screen.py::BetweenBattleController`,
+   wired into `visualizer/renderer.py`) displays level (with a LEVEL UP
+   marker), attributes with deltas, class XP with deltas, and current/max
+   HP with a recovering indicator, for every roster hero. Deltas come from
+   `engine/hero_delta.py` + `Session.deltas()`, verified by
+   `tests/test_session.py::test_deltas_reflect_only_the_most_recent_battle_not_accumulated_history`
+   across a two-battle session. **Manual verification is partial**: the
+   actual game window was launched directly and confirmed to start with no
+   crash, and every click/key interaction is covered by a
+   `SDL_VIDEODRIVER=dummy` scripted-event test, but nobody looked at the
+   rendered screen with human eyes this session — worth a real look before
+   trusting the layout is actually readable.
+8. No level-up history is exposed anywhere — enforced structurally, not
+   just by convention: `Session` keeps exactly one snapshot per roster
+   hero (`_pre_battle_snapshots`), overwritten on every `begin_battle()`
+   call, so a second-to-last delta doesn't exist in memory to expose (ADR
+   0008).
+9. `engine/telemetry.py::write_session_report` dumps per-hero class XP,
+   class-XP concentration (share held by the top track), hidden affinity,
+   level, attributes, and `battles_fielded`/`battles_benched` (new `Hero`
+   counters, incremented in `begin_battle()`) to JSON, gated behind
+   `config.TELEMETRY_ENABLED` (default `False`). Wired into `renderer.py`
+   at the exact point `session.is_over` flips true. Affinity appears only
+   here — never read back by anything UI-reachable.
+10. `uv run ty check` passes cleanly; `uv run pytest` passes all 163 tests
+    (up from 102 at the end of Phase 2a).
+
+**Design notes / deviations:**
+
+- `SQUAD_SIZE` was split into `ROSTER_SIZE`/`FIELDED_SQUAD_SIZE` rather
+  than kept as one overloaded constant — it was already doing double duty
+  for "player squad size" and "enemy squad size" before this phase, which
+  stopped being a safe conflation once roster and fielded-squad size
+  genuinely diverged.
+- `visualizer/renderer.py`'s per-frame dispatch needed reordering (not
+  just extending) to fit the between-battle screen in without a one-frame
+  visual glitch: the battle-ended → `session.advance()` → maybe-create-
+  screen step now runs *before* the mode dispatch each frame, not inside
+  the old battle-turn `else` arm, so the very frame a screen is created it
+  also handles its own input/drawing immediately. The dead code this
+  obsoleted — the old Enter-driven "advance to the next battle" branch
+  from Phase 2a (ADR 0005), back when `Session` auto-prepared battles —
+  was deleted rather than left stubbed.
+- The between-battle screen defaults to re-fielding whoever fought last
+  battle (`session.fielded`) rather than starting empty — a one-click-
+  confirm default for the common case. This is also why the pre-existing
+  Phase 2a session-chaining renderer test needed no changes: with a
+  roster the same size as the fielded squad, there's nothing to actually
+  choose, so the screen is immediately ready and one Enter press confirms
+  it exactly as before this screen existed.
+- Bench-bonus XP's ownership moved from `Battle` (Phase 2a, ADR 0003) to
+  `Session` — `Battle` only ever sees the fielded squad, never a roster,
+  so it structurally can't know who's benched. `Battle._resolve_battle_end`
+  otherwise still resolves fielded XP and downed-hero revival exactly as
+  it did in Phase 2a.
+
+**Deferred (per phase doc's explicit out-of-scope list):** consumables,
+training facilities / variable manual-allocation-point counts, Tier 1
+archetype unlocks, perk trees, Tier 2 branches, multiclassing, Track 3
+ability training, contested-roll resolution (`rng` stays plumbed and
+unused), secondary resources, equipment/gear, AoE abilities, new
+abilities, meta-progression/rewards/currency/run structure, save/load
+across process restarts, permanent hero loss, generated-enemy difficulty
+scaling, agility-driven initiative, terrain, telegraphed enemy intent. The
+roguelite question (a note in the phase doc, not a numbered scope item)
+remains deliberately unanswered — the session is still a self-contained
+sequence with no reset semantics built either way.
