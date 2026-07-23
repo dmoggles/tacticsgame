@@ -1,6 +1,6 @@
 # Project Vision & Design Context
 
-*Revision 2 — supersedes the original vision document.*
+*Revision 3 — supersedes revisions 1 and 2.*
 
 ## Purpose of this document
 
@@ -14,6 +14,17 @@ to build today, the phase document wins.
 It exists so phase docs don't re-explain the whole system, and so anyone
 picking the project up mid-stream has the full picture.
 
+**What changed in revision 3.** Combat resolution is **probabilistic**,
+not deterministic. Earlier revisions committed to Into the Breach-style
+determinism as a pillar. That was never a stated requirement — it
+originated as an opening suggestion during ideation and was carried
+forward unexamined. It also sat in direct contradiction with this
+document's own description of Track 3, which has always specified
+contested checks with rerolls on failure. Randomness was in the design
+from the beginning; it had merely been quarantined into a deferred
+track. See "Resolution model" for the mechanics, which now use
+FT&G-style contested rolls. This change reopens cover as a meaningful
+mechanic and adds a resolution-rework phase ahead of the tactical work.
 **What changed in revision 2.** The original document deferred the
 question of run structure and leaned toward a roguelite reset. That
 question is now resolved in the other direction: **the game is a
@@ -81,11 +92,13 @@ pyramid does for FT&G:
   than accumulation.
 - **Classless start, emergent specialisation.** No hero begins locked
   into a role. What they become follows from how they get used.
-- **Readable, deterministic combat within contact.** Positioning and
-  decision-making over randomness, Into the Breach in spirit. Note that
-  this is scoped to *contact*: uncertainty about what has not yet been
-  found is a separate matter and is a deliberate part of the design —
-  see "The tactical layer" for the reconciliation.
+- **Readable odds, not certain outcomes.** Combat is probabilistic. What
+  the design owes the player is *legibility before commitment* — you see
+  what an action is likely to achieve before you spend it on, and enemy
+  intent is telegraphed even though its success is not guaranteed. Two
+  further kinds of uncertainty are deliberate and distinct: variance in
+  resolution (see "Resolution model") and, later, uncertainty about what
+  has not yet been discovered (see "The tactical layer").
 - **Abilities as evolving equipment, not fixed kit.** Abilities are data
   that scales, upgrades, and swaps — not hardcoded per-hero methods.
 
@@ -311,7 +324,10 @@ express, so this comes first.
 an empty grid is just a radius circle. Terrain also does independent
 work: it makes positioning matter, creates chokepoints, and is what
 makes rescue a real question (can you reach them, or is there a wall in
-the way?).
+the way?). **Two tiers of cover**, modifying the defender's side of the
+contested roll, with their precise semantics left to tuning. Cover only
+became worth having again once resolution went probabilistic — under
+determinism it would have been two numbers with no variance to modulate.
 
 **3. Line of sight, then fog of war.** Approach tension, discovery, and
 a genuine unknown. Also gives **Agility** a job — it has been tracked
@@ -325,20 +341,80 @@ the least necessary for the fiction — Battle Brothers has essentially
 none and reads as mercenary work fine. Revisit only after fog is
 working.
 
-### Reconciling fog of war with the readability pillar
+### Reconciling fog of war with legibility
 
-These two goals are in genuine conflict and the tension should be
-resolved deliberately rather than discovered later. Into the Breach
-readability means telegraphed intent and no hidden information; fog of
-war is hidden information by definition.
+Fog of war introduces hidden information, which sits in tension with
+telegraphed intent. The tension should be resolved deliberately rather
+than discovered later.
 
 **The resolution is a split by phase of engagement: uncertainty about
-what has not been found, determinism once it has.** You do not know what
-is behind the ridge. The moment an enemy is in view, its intent is fully
-telegraphed and the fight is a solvable puzzle. This is roughly how
-Battle Brothers reads in practice, it preserves the pillar where it
-matters, and it buys approach tension without costing tactical
-legibility.
+what has not been found, legibility once it has.** You do not know what
+is behind the ridge. The moment an enemy is in view, its intent is
+telegraphed and its odds are shown. This is roughly how Battle Brothers
+reads in practice, and it buys approach tension without costing
+tactical legibility.
+
+---
+
+## Resolution model
+
+Combat resolution is **probabilistic, in the FT&G tradition of contested
+rolls** rather than XCOM's attacker-side hit percentage. The player is
+owed visible odds before committing; they are not owed certainty.
+
+- **Contested roll.** An action's success is the attacker's roll against
+  the defender's. Both sides derive from **weighted combinations of
+  attributes**, exactly as ability damage scaling already works —
+  defence is Resolve plus another attribute at a to-be-determined ratio,
+  not a single stat. This gives Resolve a genuine job; it has been a
+  dead-end attribute since the first telemetry, scaling only a
+  conditional heal.
+- **Margin-scaled magnitude.** Damage scales with the margin of the
+  contest — a narrow win grazes, a decisive win lands hard — rather than
+  being drawn from a separate table. One roll drives both whether and
+  how much.
+- **Sub-linear scaling, on a bell curve.** Both choices exist to stop
+  variance and stat leads from compounding:
+  - A **bell-shaped** distribution (rather than uniform) makes attribute
+    advantages reliable and extreme outcomes rare. This matters because
+    the consequences are hard — permanent wounds, retirement pressure,
+    death if a downed hero is not reached. Fat tails plus hard
+    consequences is the combination that produces "I lost my forty-battle
+    veteran to a fluke," which is both a savescum trigger and an
+    attachment-killer.
+  - **Sub-linear** margin scaling stops a high attribute paying twice
+    over — landing more often *and* hitting harder — which would
+    otherwise tighten exactly the attribute-determinism the project has
+    been working to loosen, and widen the gap between developed and
+    undeveloped heroes.
+- **Not everything rolls.** Whether an ability is contested is decided
+  per ability. Healing, for instance, lands automatically but varies in
+  magnitude. Auto-success and magnitude variance are independent
+  properties, and both belong in ability data.
+- **Every variance knob is tunable.** Distribution width, margin
+  scaling, per-ability variance, and auto-success are all data, not
+  constants buried in resolution code.
+
+**Track 3 becomes coherent under this model rather than despite it.**
+Ability levels changing *reliability* — level 1 a single contested
+check, level 2 a reroll on failure — only means something when checks
+can fail. Alternative ladders worth considering when Track 3 is built:
+shifting the attacker's distribution upward, or narrowing its variance
+(roll twice, take the better), which reads beautifully as "trained
+skill" and feels different from a reroll.
+
+**Deliberately left open:** distance-based damage dropoff, as Menace
+does it. The design should leave room for it — range is already a
+per-ability property and margin already scales magnitude — without
+building it now.
+
+**Consequences.** Displaying odds becomes two numbers rather than one
+("84% to land, 4–9 damage"), which is more informative but less punchy,
+and showing them is load-bearing for fairness. The AI's action preview
+must move from exact outcomes to expected value, with kill-priority
+becoming probability-of-kill. And every measurement gets noisier:
+sample sizes grow and the paired-seed discipline moves from good
+practice to mandatory.
 
 ### Costs to go in with eyes open
 
@@ -352,16 +428,25 @@ legibility.
 
 ### Sequencing consequence
 
-**The tactical rework should precede the career layer.** Contract types
-depend on what battles can express, so designing contracts against arena
-battles would either constrain them or force a redesign once maps gain
-objectives. Building the career layer on top of arena combat would also
-cement precisely the fiction the project is moving away from.
+**The resolution rework comes first, then the tactical rework, then the
+career layer.**
 
-The natural shape of the next tactical phase is **terrain and cover,
+Contested resolution is largely engine-internal and headlessly testable,
+and it forces a rework of the AI's action scoring from exact outcomes to
+expected value. Doing it before the tactical work means that scoring
+rework happens once, against the final model, rather than twice.
+
+The tactical rework in turn precedes the career layer: contract types
+depend on what battles can express, so designing contracts against
+elimination-only arena battles would either constrain them or force a
+redesign once maps gain objectives. Building the career layer on top of
+arena combat would also cement precisely the fiction the project is
+moving away from.
+
+The natural shape of the tactical phases is **terrain and cover,
 objectives beyond elimination, a fielded squad of four, and the rescue
-mechanic** — coherent as a unit because rescue depends on all three of
-the others. Fog follows once line of sight exists.
+mechanic** — with rescue depending on all three of the others, and fog
+following once line of sight exists.
 
 ---
 
@@ -401,6 +486,13 @@ decisions. These are empirical, not speculative.
   simultaneously raise the relative weight of everything the player does
   afterward.
 
+**Caveat on all of the above:** every one of these figures was measured
+under *deterministic* resolution. Contested rolls widen every
+distribution and add a second path by which circumstance rather than
+nature decides outcomes. The findings should be re-measured after the
+resolution rework before being relied on again — particularly the
+predictability figure, which is the project's standing design metric.
+
 ---
 
 ## Open questions
@@ -410,12 +502,19 @@ Discussed but deliberately unresolved:
 - What a bad contract verdict actually costs
 - Wound malus design — what kind of effect, and how severe
 - Attrition rate tuning, the central risk of the whole design
+- The attribute weighting ratio for defence (Resolve plus what, at what
+  proportion), and the width of the roll distribution relative to
+  attribute magnitudes — the latter decides whether stats or dice
+  dominate
+- How the two cover tiers actually modify the contest
+- Whether distance-based damage dropoff is worth adding
 - Whether recruits arrive raw, experienced, or both
 - How opposition scales across a career now that flat difficulty is no
-  longer defensible
-- Grid size and shape once terrain and objectives exist — 8x12 was
-  chosen for an open arena and should not be assumed to survive
-- How maps are generated: hand-authored, procedural, or templated
+  longer defensible. Note that enemies are currently mirror images of
+  heroes; the intent is for them to become **specifically engineered
+  enemy types** instead, at which point squad sizing and composition
+  become design rather than symmetry.
+- Roster size once the fielded squad is four
 - Whether stealth is ever worth its cost
 - Whether hidden affinity stays permanently opaque or becomes indirectly
   reconstructable

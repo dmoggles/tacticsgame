@@ -474,3 +474,20 @@ Implemented the corrective work order between Phase 2b and Phase 3 to make a her
 **Design notes & ADRs:**
 - Recorded `docs/adr/0009-synthesis-variance-dirichlet-concentration.md` for the synthesis concentration change.
 - Recorded `docs/adr/0010-ability-differentiation-and-resolve-scaling.md` for ability range differentiation and Resolve attack scaling.
+
+## 2026-07-23 — Phase 3, Step 1: Deterministic Baseline (WIP)
+
+Completed the pre-rework checkpoint before changing combat resolution:
+
+- Verified `tests/fixtures/ai_vs_ai_baseline.json` against a fresh deterministic
+  capture across the committed seeded battle set (`tests/test_ai_vs_ai_baseline.py`).
+- Ran the standing predictability measurement over 200 auto-play sessions with
+  seed 42 (800 roster heroes): **57.25%** (458/800) had the class track
+  predicted by their top attribute. This is the Phase 3 pre-change comparison
+  figure; the earlier 50-session result was 58.5%.
+- Recorded the accompanying full-session win rate as **50.5%** (101/200),
+  useful context for the post-resolution retuning checkpoint.
+
+**Deferred to later Phase 3 steps:** contested-roll mechanics, margin scaling,
+YAML resolution properties, expected-value AI, odds display, and post-change
+measurement/baseline regeneration.
