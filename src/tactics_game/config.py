@@ -47,6 +47,22 @@ CLASS_XP_PER_ABILITY_USE = 5
 # data.
 ABILITY_SLOT_COUNT = 4
 
+# --- Contested resolution (Phase 3) ---
+# Each side rolls a centered bell-shaped sum: CONTEST_DICE_COUNT d
+# CONTEST_DIE_FACES minus CONTEST_DICE_COUNT * (CONTEST_DIE_FACES + 1) / 2.
+# 3d3 - 6 produces integer noise from -3 to +3, centred at zero.
+CONTEST_DICE_COUNT = 3
+CONTEST_DIE_FACES = 3
+# Defence is Resolve plus the attack component's primary attribute (the
+# scaling term with the greatest multiplier). Both are deliberately named
+# tuning knobs rather than constants hidden in resolution.py.
+DEFENCE_RESOLVE_WEIGHT = 0.7
+DEFENCE_PRIMARY_ATTRIBUTE_WEIGHT = 0.3
+# Float precision used when comparing weighted contest totals. This prevents
+# mathematically equal scores (for example 12.0 versus 0.7*12 + 0.3*12) from
+# becoming accidental wins through binary floating-point representation.
+CONTEST_MARGIN_DECIMAL_PLACES = 10
+
 # --- Battle grid ---
 GRID_WIDTH = 8
 GRID_HEIGHT = 12

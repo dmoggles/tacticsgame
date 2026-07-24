@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import random
+from collections import Counter
+
+import pytest
 
 from tactics_game import config
 from tactics_game.engine import progression, resolution
@@ -73,6 +76,83 @@ def test_damage_effect_scales_with_multiple_attributes() -> None:
     # 2 + 4*1 + 6*0.5 = 9
     assert result.damage == 9
     assert target.current_hp == 11
+
+
+def test_contest_scores_defence_against_the_attack_primary_attribute() -> None:
+    attacker = _make_hero(
+        "Attacker", 20, 20, Attributes(might=8, focus=5, resolve=2, agility=4)
+    )
+    defender = _make_hero(
+        "Defender", 20, 20, Attributes(might=6, focus=9, resolve=10, agility=3)
+    )
+    strike_scaling = [
+        resolution.ScalingTerm(attribute="might", multiplier=0.8),
+        resolution.ScalingTerm(attribute="resolve", multiplier=0.4),
+    ]
+    bolt_scaling = [resolution.ScalingTerm(attribute="focus", multiplier=1.0)]
+
+    assert resolution.weighted_attribute_score(attacker, strike_scaling) == pytest.approx(7.2)
+    assert resolution.primary_attack_attribute(strike_scaling) == "might"
+    assert resolution.defence_score(defender, "might") == pytest.approx(8.8)
+    assert resolution.primary_attack_attribute(bolt_scaling) == "focus"
+    assert resolution.defence_score(defender, "focus") == pytest.approx(9.7)
+
+
+def test_contest_rejects_missing_or_ambiguous_primary_attack_attribute() -> None:
+    with pytest.raises(ValueError, match="at least one scaling"):
+        resolution.primary_attack_attribute([])
+    with pytest.raises(ValueError, match="unique primary"):
+        resolution.primary_attack_attribute(
+            [
+                resolution.ScalingTerm(attribute="might", multiplier=1.0),
+                resolution.ScalingTerm(attribute="focus", multiplier=1.0),
+            ]
+        )
+
+
+def test_contest_is_seeded_and_reports_its_complete_margin() -> None:
+    attacker = _make_hero("Attacker", 20, 20, Attributes(might=12, focus=1, resolve=1, agility=1))
+    defender = _make_hero("Defender", 20, 20, Attributes(might=1, focus=1, resolve=4, agility=1))
+    scaling = [resolution.ScalingTerm(attribute="might", multiplier=1.0)]
+
+    result = resolution.resolve_contest(attacker, defender, scaling, random.Random(17))
+    same_seed_result = resolution.resolve_contest(attacker, defender, scaling, random.Random(17))
+
+    assert result == same_seed_result
+    assert result.attack_score == 12
+    assert result.defence_score == pytest.approx(3.1)
+    assert result.attacker_roll == result.attack_score + result.attacker_noise
+    assert result.defender_roll == result.defence_score + result.defender_noise
+    assert result.margin == round(
+        result.attacker_roll - result.defender_roll, config.CONTEST_MARGIN_DECIMAL_PLACES
+    )
+    assert result.succeeded is (result.margin > 0)
+
+
+def test_contest_ties_fail_despite_weighted_float_representation() -> None:
+    attacker = _make_hero("Attacker", 20, 20, Attributes(might=1, focus=12, resolve=4, agility=1))
+    defender = _make_hero("Defender", 20, 20, Attributes(might=1, focus=12, resolve=12, agility=1))
+    scaling = [resolution.ScalingTerm(attribute="focus", multiplier=1.0)]
+
+    result = resolution.resolve_contest(attacker, defender, scaling, random.Random(1))
+
+    assert result.attack_score == 12
+    assert result.defence_score == pytest.approx(12)
+    assert result.margin == 0
+    assert not result.succeeded
+
+
+def test_contest_noise_is_a_centered_bell_shaped_distribution() -> None:
+    samples = [resolution.roll_contest_noise(random.Random(seed)) for seed in range(20_000)]
+    counts = Counter(samples)
+
+    assert min(samples) == -3
+    assert max(samples) == 3
+    assert abs(sum(samples) / len(samples)) < 0.05
+    assert counts[0] > counts[-3]
+    assert counts[0] > counts[3]
+    assert counts[-1] > counts[-3]
+    assert counts[1] > counts[3]
 
 
 def test_heal_effect_scales_with_an_attribute_and_does_not_overheal() -> None:

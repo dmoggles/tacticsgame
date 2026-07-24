@@ -15,10 +15,9 @@ class ResolutionResult:
     description: str = ""
 
 
-# rng is unused by any effect this phase (resolution is fully
-# deterministic) but is threaded through now so semi-random/contested
-# resolution math (TODO(phaseN+)) can be added inside an effect function
-# later without changing how abilities are invoked.
+# Effects retain the supplied battle RNG. Phase 3 contest primitives use the
+# same seeded RNG already; live effects will consume it once margin-scaled
+# magnitude is wired in during the next checkpoint.
 AbilityEffect = Callable[["Hero", "Hero", random.Random], ResolutionResult]
 
 

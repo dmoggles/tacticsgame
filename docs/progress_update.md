@@ -491,3 +491,36 @@ Completed the pre-rework checkpoint before changing combat resolution:
 **Deferred to later Phase 3 steps:** contested-roll mechanics, margin scaling,
 YAML resolution properties, expected-value AI, odds display, and post-change
 measurement/baseline regeneration.
+
+## 2026-07-23 — Phase 3, Step 2: Contested-roll Foundation (WIP)
+
+Implemented the headless, seeded contest primitives without changing live
+ability outcomes yet:
+
+- Added `ContestResult` plus pure score/noise/contest helpers in
+  `engine/resolution.py`. An attack uses its existing weighted scaling terms;
+  defence is configurable Resolve plus the incoming component's primary attack
+  attribute.
+- Added named configuration for a centered bell-shaped `3d3 - 6` roll on each
+  side and initial defence weights of 0.7 Resolve / 0.3 primary attribute.
+  Both sides consume the supplied seeded RNG, preserving reproducibility.
+- A contested component must have one unique highest scaling multiplier; this
+  defines its primary attribute. Missing or tied primaries fail explicitly,
+  with YAML validation of the same invariant deferred to Step 4.
+- Added direct tests for weighted/dynamic defence, malformed primary scaling,
+  seeded contest reporting, and empirical bell shape/range. Existing effects
+  remain deterministic until Step 3 introduces margin-scaled magnitude.
+- Added `scripts/simulate_contests.py` and
+  `docs/phase3_contest_simulation.md`: 81 attack/defence scenarios, each with
+  50,000 trials (4.05 million total). The sweep shows that the narrow initial
+  distribution makes a four-point score edge roughly 96% to land and an equal
+  score roughly 40% because ties fail. It also exposed and led to a regression
+  fix for a binary-float artefact that had made mathematically tied weighted
+  scores succeed.
+- Recorded the choice and alternatives in ADR 0011.
+
+**Verification:** `uv run pytest tests/test_resolution.py` (11 passed),
+`uv run ty check`, and `uv run pytest` (173 passed).
+
+**Deferred to Step 3:** calling the contest from live ability resolution,
+sub-linear margin-to-magnitude scaling, and the minimum landed-hit floor.
