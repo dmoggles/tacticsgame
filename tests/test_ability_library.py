@@ -89,6 +89,82 @@ def test_build_component_raises_on_unknown_applies_to() -> None:
         )
 
 
+def _profiles() -> dict[str, ability_library.resolution.DamageProfile]:
+    return ability_library._build_damage_profiles(
+        {
+            "standard": {
+                "base_flat": 2,
+                "base_per_attack": 0.2,
+                "baseline_quality": 0.5,
+                "margin_sensitivity": 0.5,
+                "quality_floor": 0.3,
+                "quality_cap": 1.2,
+            }
+        }
+    )
+
+
+def test_component_loads_a_named_profile_and_its_override() -> None:
+    component = ability_library._build_component(
+        "test_ability",
+        {
+            "kind": "damage",
+            "base": 1,
+            "verb": "pokes",
+            "contested": True,
+            "profile": "standard",
+            "profile_overrides": {"base_flat": 3},
+            "scaling": [{"attribute": "might", "multiplier": 1}],
+        },
+        _profiles(),
+    )
+
+    assert component.contested is True
+    assert component.profile is not None
+    assert component.profile.base_flat == 3
+
+
+@pytest.mark.parametrize(
+    "scaling",
+    [[], [{"attribute": "might", "multiplier": 1}, {"attribute": "focus", "multiplier": 1}]],
+)
+def test_contested_damage_rejects_missing_or_tied_primary_scaling_at_load(
+    scaling: list[dict[str, object]],
+) -> None:
+    with pytest.raises(ValueError, match="invalid attack scaling"):
+        ability_library._build_component(
+            "test_ability",
+            {
+                "kind": "damage",
+                "base": 1,
+                "verb": "pokes",
+                "contested": True,
+                "profile": "standard",
+                "scaling": scaling,
+            },
+            _profiles(),
+        )
+
+
+def test_automatic_component_accepts_magnitude_variance() -> None:
+    component = ability_library._build_component(
+        "test_ability",
+        {
+            "kind": "heal",
+            "base": 1,
+            "verb": "mends",
+            "contested": False,
+            "automatic_variance_width": 0.25,
+            "profile": "standard",
+            "scaling": [{"attribute": "resolve", "multiplier": 1}],
+        },
+        _profiles(),
+    )
+
+    assert component.contested is False
+    assert component.automatic_variance_width == 0.25
+
+
 def test_build_scaling_term_raises_on_unknown_attribute() -> None:
     with pytest.raises(ValueError, match="attribute"):
         ability_library._build_scaling_term("test_ability", {"attribute": "luck", "multiplier": 1})

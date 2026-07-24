@@ -609,3 +609,29 @@ honestly until those are resolved.
 
 **Verification:** `uv run pytest tests/test_resolution.py` (13 passed) and
 `uv run ty check` pass.
+
+### 2026-07-24 — Phase 3 Step 4: Per-ability resolution data (WIP)
+
+- Added the three named, data-owned magnitude profiles (`reliable`, `swingy`,
+  and `standard`) to `data/abilities.yaml`. Strike uses `standard`, Shot uses
+  `reliable`, Bolt uses `swingy`, and Mend is explicitly automatic with a
+  synthetic quality variance width of `0.25`.
+- The ability loader now resolves named profiles, supports explicit per-ability
+  profile overrides, validates profile bounds and variance widths, and rejects
+  contested damage components with missing or tied primary scaling attributes
+  at load time.
+- Live ability effects now use a contest plus normalised-margin magnitude for
+  contested components, while automatic components use their profile with a
+  seeded synthetic quality. Legacy direct `EffectComponent` construction stays
+  compatible for earlier unit tests while all shipped ability data takes the
+  new path.
+- Added ADR 0012. It supersedes ADR 0011 only for its fixed-width noise and
+  rounding decision; its dynamic defence relationship remains in force.
+
+**Verification:** focused resolution and ability-loader tests pass (26 passed),
+and `uv run ty check` passes. The full suite has two intentional integration
+failures: `test_decide_turn_prefers_the_higher_damage_reachable_attack` and the
+AI-vs-AI baseline fixture still assert deterministic pre-Phase-3 preview and
+battle outcomes. Step 5's expected-value preview and AI scoring work owns
+updating those expectations and regenerating the baseline rather than masking
+the new live resolution here.

@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded in part by ADR 0012 (noise model and rounding behaviour); defence
+model and contest primitives remain accepted.
 
 ## Context
 

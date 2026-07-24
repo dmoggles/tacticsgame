@@ -10,13 +10,9 @@ from ..models.ability import AbilityEffect, ResolutionResult
 if TYPE_CHECKING:
     from ..models.hero import Hero
 
-# Phase 1 resolution is deterministic — no contested rolls yet — but each
-# ability's magnitude scales with whichever attribute(s) its data says it
-# should (see data/abilities.yaml). Effects are built from declarative
-# EffectComponents rather than one hand-written function per ability, so
-# adding/tuning an ability is a data change, not a code change.
-# TODO(phaseN+): contested-roll resolution math (rng is already threaded
-# through AbilityEffect for this, but unused so far).
+# Effects are built from declarative EffectComponents rather than one
+# hand-written function per ability. Contested versus automatic resolution,
+# the magnitude profile, and automatic variance all come from ability data.
 
 
 @dataclass(frozen=True)
@@ -40,12 +36,13 @@ class EffectComponent:
     """
 
     kind: str  # "damage" | "heal"
-    # TODO(phaseN+): a "roll" kind (and/or a `contested: bool` flag) once
-    # semi-random / opposed resolution is implemented.
     base: float
     scaling: list[ScalingTerm]
     verb: str
     applies_to: str = "target"  # "target" | "caster"
+    contested: bool = True
+    profile: DamageProfile | None = None
+    automatic_variance_width: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -67,7 +64,7 @@ class ContestResult:
 
 @dataclass(frozen=True)
 class DamageProfile:
-    """Margin-to-magnitude curve; Step 4 will load these from ability data."""
+    """Margin-to-magnitude curve, loaded from named ability-data profiles."""
 
     base_flat: float
     base_per_attack: float
@@ -158,17 +155,28 @@ def make_effect(components: list[EffectComponent]) -> AbilityEffect:
     components an ability has."""
 
     def effect(caster: Hero, target: Hero, rng: random.Random) -> ResolutionResult:
-        # rng is unused this phase — resolution is still fully
-        # deterministic. TODO(phaseN+): semi-random modified rolls,
-        # possibly contested against target's own roll (target is already
-        # fully available above for that).
         total_damage = 0
         total_healing = 0
         clauses: list[str] = []
         for component in components:
             recipient = caster if component.applies_to == "caster" else target
-            scaling_value = weighted_attribute_score(caster, component.scaling)
-            amount = round(component.base + scaling_value)
+            if component.profile is None:
+                # Compatibility while Step 4 data migration is in progress.
+                amount = round(component.base + weighted_attribute_score(caster, component.scaling))
+            elif component.contested:
+                contest = resolve_contest(caster, target, component.scaling, rng)
+                amount = damage_from_contest(contest, component.profile)
+            else:
+                attack_score = weighted_attribute_score(caster, component.scaling)
+                base = component.profile.base_flat + component.profile.base_per_attack * attack_score
+                synthetic_margin = rng.uniform(
+                    -component.automatic_variance_width, component.automatic_variance_width
+                )
+                quality = component.profile.baseline_quality + component.profile.margin_sensitivity * synthetic_margin
+                amount = max(
+                    1,
+                    round(base * min(component.profile.quality_cap, max(component.profile.quality_floor, quality))),
+                )
             if component.kind == "damage":
                 recipient.current_hp = max(0, recipient.current_hp - amount)
                 total_damage += amount

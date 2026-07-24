@@ -6,9 +6,17 @@
 # normalized to a one-item list). Each component:
 #   kind: damage | heal
 #   base: flat amount before scaling
+#   contested: whether the component uses an attacker-versus-defender contest
+#   profile: named damage profile; profile_overrides may replace any profile knob
+#   automatic_variance_width: synthetic-quality half-width for automatic effects
 #   scaling: list of {attribute: might|focus|resolve|agility, multiplier}
 #   verb: used in the battle-log description
 #   applies_to: target | caster (defaults to target)
+damage_profiles:
+  reliable: {base_flat: 2.85, base_per_attack: 0.12, baseline_quality: 0.75, margin_sensitivity: 0.20, quality_floor: 0.60, quality_cap: 1.00}
+  swingy: {base_flat: 2.85, base_per_attack: 0.18, baseline_quality: 0.65, margin_sensitivity: 0.70, quality_floor: 0.20, quality_cap: 1.40}
+  standard: {base_flat: 4.30, base_per_attack: 0.24, baseline_quality: 0.50, margin_sensitivity: 0.50, quality_floor: 0.35, quality_cap: 1.20}
+
 abilities:
   - id: basic_strike
     name: "Basic Strike"
@@ -19,6 +27,8 @@ abilities:
     effect:
       kind: damage
       base: 5
+      contested: true
+      profile: standard
       scaling:
         - attribute: might
           multiplier: 0.8
@@ -35,6 +45,8 @@ abilities:
     effect:
       kind: damage
       base: 4
+      contested: true
+      profile: reliable
       scaling:
         - attribute: agility
           multiplier: 1
@@ -49,6 +61,8 @@ abilities:
     effect:
       kind: damage
       base: 5
+      contested: true
+      profile: swingy
       scaling:
         - attribute: focus
           multiplier: 1
@@ -63,6 +77,9 @@ abilities:
     effect:
       kind: heal
       base: 6
+      contested: false
+      automatic_variance_width: 0.25
+      profile: reliable
       scaling:
         - attribute: resolve
           multiplier: 0.5
