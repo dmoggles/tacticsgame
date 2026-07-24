@@ -166,7 +166,7 @@ def test_valid_targets_uses_hypothetical_position_not_actor_position() -> None:
 # --- preview_ability_outcome ---
 
 
-def test_preview_ability_outcome_does_not_mutate_caster_or_target() -> None:
+def test_preview_ability_outcome_is_non_mutating_and_samples_expected_outcomes() -> None:
     # A synthetic ability with a component that heals the caster — the
     # preview must scratch-copy the caster too, not just the target, or
     # "previewing" this option would actually apply the heal.
@@ -188,9 +188,12 @@ def test_preview_ability_outcome_does_not_mutate_caster_or_target() -> None:
         "Target", Position(1, 0), current_hp=10, max_hp=20, is_player_controlled=False
     )
 
-    result = queries.preview_ability_outcome(caster, ability, target)
+    preview = queries.preview_ability_outcome(caster, ability, target)
 
-    assert result.healing == 5
+    assert preview.success_probability == 1
+    assert preview.expected_healing == 5
+    assert preview.expected_damage == 0
+    assert len(preview.damage_samples) == config.ABILITY_PREVIEW_SAMPLE_COUNT
     assert caster.current_hp == 10
     assert target.current_hp == 10
 

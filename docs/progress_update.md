@@ -635,3 +635,25 @@ AI-vs-AI baseline fixture still assert deterministic pre-Phase-3 preview and
 battle outcomes. Step 5's expected-value preview and AI scoring work owns
 updating those expectations and regenerating the baseline rather than masking
 the new live resolution here.
+
+### 2026-07-24 — Phase 3 Step 5: Expected-value action preview and AI (WIP)
+
+- Replaced the one-roll deterministic action preview with an engine-owned,
+  fixed-seed Monte Carlo distribution over 256 live effect applications. It
+  reports success probability, expected damage, expected damage conditional on
+  success, expected healing, kill probability, and the sampled damage values
+  for the subsequent odds-display step.
+- The AI now scores attacks by expected damage plus probability-weighted kill
+  priority. Healing candidates use expected healing instead of assuming a
+  single deterministic result. Preview sampling uses its own fixed RNG and
+  scratch heroes, so it neither mutates game state nor consumes battle RNG.
+- Regenerated the ten-seed AI-vs-AI regression fixture. This captures the
+  intentional behavioural change from both live contested resolution and
+  expected-value choice rather than retaining assertions about the old
+  deterministic combat model.
+
+**Verification:** focused AI/query tests (21 passed), `uv run ty check`, and
+the full `uv run pytest -q` suite pass (178 tests). The full suite now takes
+roughly two minutes because every AI candidate is sampled; Step 7 should
+benchmark this before larger variance sweeps and consider a lower sample count
+or cached preview if it becomes a practical bottleneck.

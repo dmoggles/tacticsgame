@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import random
 from collections import deque
+from dataclasses import dataclass
+from statistics import fmean
 from typing import TYPE_CHECKING
 
 from .. import config
@@ -18,6 +20,23 @@ if TYPE_CHECKING:
 # Read-only: nothing here mutates battle state. `ai.decide_turn` consumes
 # this module rather than computing legality itself, so the AI and any
 # future UI can never disagree about what's legal.
+
+
+@dataclass(frozen=True)
+class AbilityOutcomePreview:
+    """Sampled, non-mutating distribution for one candidate action.
+
+    Expected damage is the probability-weighted action value (failed attacks
+    contribute zero). ``expected_damage_on_success`` preserves the conditional
+    quantity needed to explain the odds to a player later.
+    """
+
+    success_probability: float
+    expected_damage: float
+    expected_damage_on_success: float
+    expected_healing: float
+    kill_probability: float
+    damage_samples: tuple[int, ...]
 
 
 def occupied_positions(actor: Hero, allies: list[Hero], enemies: list[Hero]) -> set[Position]:
@@ -94,14 +113,32 @@ def valid_targets(
     ]
 
 
-def preview_ability_outcome(caster: Hero, ability: Ability, target: Hero) -> ResolutionResult:
-    """Non-mutating preview of an ability's effect, reusing the real
-    resolution math.
+def preview_ability_outcome(caster: Hero, ability: Ability, target: Hero) -> AbilityOutcomePreview:
+    """Return a deterministic sampled distribution for an ability action.
 
-    Runs the effect against scratch copies of both caster and target — not
-    just target — since an effect component can apply to the caster (e.g. a
-    self-heal), and previewing an option must never actually apply it.
+    Every sample runs the live effect against scratch copies, so expected
+    magnitude integrates the real contest-margin curve rather than evaluating
+    damage at a mean margin. The fixed preview RNG keeps AI choices and a
+    future player display reproducible without consuming battle RNG.
     """
-    scratch_caster = copy.copy(caster)
-    scratch_target = copy.copy(target)
-    return ability.effect(scratch_caster, scratch_target, random.Random())
+    rng = random.Random(0)
+    results = []
+    for _ in range(config.ABILITY_PREVIEW_SAMPLE_COUNT):
+        scratch_caster = copy.copy(caster)
+        scratch_target = copy.copy(target)
+        results.append(ability.effect(scratch_caster, scratch_target, rng))
+
+    damages = tuple(result.damage for result in results)
+    healings = tuple(result.healing for result in results)
+    successful_damage = tuple(damage for damage in damages if damage > 0)
+    success_count = sum(
+        damage > 0 or healing > 0 for damage, healing in zip(damages, healings, strict=True)
+    )
+    return AbilityOutcomePreview(
+        success_probability=success_count / len(results),
+        expected_damage=fmean(damages),
+        expected_damage_on_success=fmean(successful_damage) if successful_damage else 0.0,
+        expected_healing=fmean(healings),
+        kill_probability=sum(damage >= target.current_hp for damage in damages) / len(results),
+        damage_samples=damages,
+    )

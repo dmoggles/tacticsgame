@@ -105,38 +105,35 @@ def _most_injured_ally(living_allies: list[Hero]) -> Hero | None:
 def _best_heal_decision(
     caster: Hero, position: Position, living_allies: list[Hero]
 ) -> AbilityDecision | None:
-    heal_ability = next(
-        (ability for ability in queries.usable_abilities(caster) if ability.targets_ally),
-        None,
-    )
-    if heal_ability is None:
-        return None
-
-    legal_targets = queries.valid_targets(caster, heal_ability, position, living_allies, [])
-    in_range = [
-        ally
-        for ally in legal_targets
-        if ally.current_hp / ally.max_hp < config.HEAL_TRIGGER_HP_FRACTION
-    ]
-    if not in_range:
-        return None
-    target = min(in_range, key=lambda ally: ally.current_hp / ally.max_hp)
-    return AbilityDecision(ability=heal_ability, target=target)
+    best: tuple[AbilityDecision, float] | None = None
+    for ability in queries.usable_abilities(caster):
+        if not ability.targets_ally:
+            continue
+        for ally in queries.valid_targets(caster, ability, position, living_allies, []):
+            if ally.current_hp / ally.max_hp >= config.HEAL_TRIGGER_HP_FRACTION:
+                continue
+            preview = queries.preview_ability_outcome(caster, ability, ally)
+            score = preview.expected_healing
+            if best is None or score > best[1]:
+                best = (AbilityDecision(ability=ability, target=ally), score)
+    return best[0] if best is not None else None
 
 
 def _best_offensive_decision(
     caster: Hero, position: Position, living_enemies: list[Hero]
-) -> tuple[AbilityDecision, int] | None:
+) -> tuple[AbilityDecision, float] | None:
     """The strongest reachable attack from `position`, scored by expected
     damage (a killing blow always outranks raw damage maximization)."""
-    best: tuple[AbilityDecision, int] | None = None
+    best: tuple[AbilityDecision, float] | None = None
     for ability in queries.usable_abilities(caster):
         if ability.targets_ally:
             continue
         for enemy in queries.valid_targets(caster, ability, position, [], living_enemies):
-            result = queries.preview_ability_outcome(caster, ability, enemy)
-            damage = result.damage + result.healing
-            score = damage + (config.AI_KILL_SCORE_BONUS if damage >= enemy.current_hp else 0)
+            preview = queries.preview_ability_outcome(caster, ability, enemy)
+            score = (
+                preview.expected_damage
+                + config.AI_KILL_SCORE_BONUS * preview.kill_probability
+            )
             if best is None or score > best[1]:
                 best = (AbilityDecision(ability=ability, target=enemy), score)
     return best

@@ -59,6 +59,10 @@ ATTACKER_ADVANTAGE = 1.30
 # tuning knobs rather than constants hidden in resolution.py.
 DEFENCE_RESOLVE_WEIGHT = 0.7
 DEFENCE_PRIMARY_ATTRIBUTE_WEIGHT = 0.3
+# Deterministic Monte Carlo samples for the engine-owned action preview. This
+# samples the full margin-to-damage distribution for AI scoring and later odds
+# display; it is deliberately separate from live battle RNG.
+ABILITY_PREVIEW_SAMPLE_COUNT = 256
 
 # --- Battle grid ---
 GRID_WIDTH = 8
@@ -81,8 +85,8 @@ FIELDED_SQUAD_SIZE = 2
 # --- Enemy AI decision-making ---
 # Fraction of max HP below which an ally is considered in need of healing.
 HEAL_TRIGGER_HP_FRACTION = 0.5
-# Score bonus for an attack that would kill its target, so kills always
-# outrank raw damage maximization when comparing candidate attacks.
+# Score weight for kill probability, so likely finishes outrank small
+# expected-damage differences without treating a sampled kill as certain.
 AI_KILL_SCORE_BONUS = 10_000
 
 # Safety cap on headless simulation steps, to guard against an
