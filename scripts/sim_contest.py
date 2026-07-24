@@ -25,6 +25,7 @@ MAGNITUDES = (2.0, 4.0, 8.0, 16.0, 32.0, 64.0)
 RATIOS = (1.5, 2.0, 3.0)
 CAREER_LEVEL_UPS = (0, 5, 20, 50)
 SENSITIVITY_SAMPLES = (1, 2, 3, 5, 10)
+ATTACKER_ADVANTAGE_CANDIDATES = (1.20, 1.25, 1.30, 1.35, 1.40)
 CLASSLESS_HP_BASE = 12.0
 CLASSLESS_HP_PER_RESOLVE = 0.6
 
@@ -126,6 +127,23 @@ def sweep_ratios(rng: random.Random, trials: int, samples: int) -> list[str]:
             for defence in MAGNITUDES:
                 success, _, _ = _summary(roll, ratio * defence, defence, rng, samples, trials)
                 rows.append(f"| {name} | {ratio:g} | {defence:g} | {success:.2%} |")
+    return rows
+
+
+def sweep_attacker_advantage(rng: random.Random, trials: int, samples: int) -> list[str]:
+    rows = [
+        "## Attacker-advantage calibration",
+        "",
+        "| Attack multiplier | Parity success | 1.5× success | 1.5× disadvantage success |",
+        "| ---: | ---: | ---: | ---: |",
+    ]
+    for multiplier in ATTACKER_ADVANTAGE_CANDIDATES:
+        parity, _, _ = _summary(scaled_ndx, multiplier, 1.0, rng, samples, trials)
+        advantage, _, _ = _summary(scaled_ndx, multiplier * 1.5, 1.0, rng, samples, trials)
+        disadvantage, _, _ = _summary(scaled_ndx, multiplier, 1.5, rng, samples, trials)
+        rows.append(
+            f"| {multiplier:.2f} | {parity:.2%} | {advantage:.2%} | {disadvantage:.2%} |"
+        )
     return rows
 
 
@@ -317,6 +335,7 @@ def run(
         "Legacy uses additive `3d3 - 6`; scaled uses continuous score-sized samples.",
         "",
         *sweep_parity(rng, trials, samples), "", *sweep_ratios(rng, trials, samples), "",
+        *sweep_attacker_advantage(rng, trials, samples), "",
         *sweep_realistic(rng, samples, realistic_pairs, realistic_trials), "",
         *sweep_ttk(rng, samples, realistic_pairs, realistic_trials), "",
         *sweep_damage_profiles(rng, samples, trials), "",

@@ -576,3 +576,12 @@ honestly until those are resolved.
 - Raised swingy's baseline quality from 0.40 to 0.65 after the first sweep
   showed its mean was not comparable to reliable. The revised sweep confirms
   comparable means (7.83 vs 7.88) with distinct SDs (0.96 vs 0.28).
+
+### 2026-07-24 — Attacker-advantage calibration
+
+- Added a simulation calibration sweep for the globally applied attacker score
+  multiplier required by `docs/11_phase3_attacker_advantage_and_corrections.md`.
+- With 100,000 trials per point, **1.30×** produces 70.38% success at score
+  parity, 89.92% at a genuine 1.5× attack/defence edge, and 38.35% when
+  outmatched 1.5×. This is the selected initial multiplier for the upcoming
+  scale-invariance and damage re-derivation work.
