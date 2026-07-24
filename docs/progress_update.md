@@ -546,3 +546,33 @@ Step 2 fixed-noise contest model:
 long-term HP attribute formula, and whether initiative/"like resists like"
 needs redesign before TTK tuning. Damage-profile/TTK sweeps cannot be tuned
 honestly until those are resolved.
+
+### 2026-07-24 — Unblock-note amendment
+
+`docs/09_phase3_unblock_notes.md` resolves the simulation follow-ups:
+
+- Basic Strike's Resolve term remains as a classless offensive crutch and is
+  deferred to Tier 1 kit replacement; its elevated Strike success rate is
+  intentional.
+- Classless HP will become `h0 + r * Resolve`; the additive class-primary term
+  is a symbolic Tier 1 concern, not Phase 3 tuning scope. Initiative remains
+  deferred, while matching-primary defence is telemetry-only.
+- Re-ran scaled parity at score 2 for 100,000 trials: 49.9660% success,
+  0.0000% exact ties. This confirms the original 48.58% measurement was sample
+  variation and that the simulation applies no rounding.
+- Corrected Sweep 3 to include distinct K-vs-(K−5) and K-vs-(K−10) cases,
+  avoiding duplicate clamped K=0 rows. Same-stage cases validate invariance;
+  lagged cases expose the still-deferred enemy-scaling question.
+
+### 2026-07-24 — Damage-sweep calibration
+
+- Added simulation-only Sweeps 4 and 5: classless TTK uses `12 + 0.6 * Resolve`
+  and damage uses normalised contest margin through named reliable, swingy, and
+  standard profiles.
+- Re-derived the initial common classless base terms from the supplied
+  placeholders to `d0 = 1.9`, `d1 = 0.12`. Under scaled N=3, best-ability TTK
+  moves from 8.32 actions at K=0 to 5.78 at K=50, matching the intended mild
+  shrink rather than the original placeholder's severe collapse.
+- Raised swingy's baseline quality from 0.40 to 0.65 after the first sweep
+  showed its mean was not comparable to reliable. The revised sweep confirms
+  comparable means (7.83 vs 7.88) with distinct SDs (0.96 vs 0.28).
