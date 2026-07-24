@@ -596,3 +596,16 @@ honestly until those are resolved.
   checkpoint. No live ability effect calls the contest yet.
 - Updated focused distribution/reproducibility tests and verified `uv run ty
   check` plus `uv run pytest tests/test_resolution.py` (12 passed).
+
+### 2026-07-24 — Phase 3 Step 3: Normalised magnitude primitives (WIP)
+
+- Added pure `normalised_margin` and `damage_from_contest` helpers plus a
+  `DamageProfile` value object. A success uses the raw attribute score for its
+  base, the advantaged contest margin for its normalized quality, and a profile
+  floor/cap; failure is zero magnitude.
+- Profiles are intentionally not wired into ability YAML or live effects yet;
+  that data migration is the following checkpoint. Focused tests cover floor,
+  failure, and decisive-versus-grazing behavior.
+
+**Verification:** `uv run pytest tests/test_resolution.py` (13 passed) and
+`uv run ty check` pass.

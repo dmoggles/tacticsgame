@@ -65,6 +65,18 @@ class ContestResult:
         return self.margin > 0
 
 
+@dataclass(frozen=True)
+class DamageProfile:
+    """Margin-to-magnitude curve; Step 4 will load these from ability data."""
+
+    base_flat: float
+    base_per_attack: float
+    baseline_quality: float
+    margin_sensitivity: float
+    quality_floor: float
+    quality_cap: float
+
+
 def weighted_attribute_score(hero: Hero, scaling: list[ScalingTerm]) -> float:
     """Return one component's attribute-weighted score for ``hero``."""
     return sum(getattr(hero.attributes, term.attribute) * term.multiplier for term in scaling)
@@ -121,6 +133,22 @@ def resolve_contest(
         defender_roll=defender_roll,
         margin=margin,
     )
+
+
+def normalised_margin(contest: ContestResult) -> float:
+    """Dimensionless contest quality; raw margin never reaches damage math."""
+    denominator = contest.advantaged_attack_score + contest.defence_score
+    return 2 * contest.margin / denominator if denominator else 0.0
+
+
+def damage_from_contest(contest: ContestResult, profile: DamageProfile) -> int:
+    """Calculate a floored, capped magnitude from a successful contest."""
+    if not contest.succeeded:
+        return 0
+    base = profile.base_flat + profile.base_per_attack * contest.attack_score
+    quality = profile.baseline_quality + profile.margin_sensitivity * normalised_margin(contest)
+    clamped_quality = min(profile.quality_cap, max(profile.quality_floor, quality))
+    return max(1, round(base * clamped_quality))
 
 
 def make_effect(components: list[EffectComponent]) -> AbilityEffect:

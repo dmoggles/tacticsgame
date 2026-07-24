@@ -150,6 +150,18 @@ def test_contest_roll_is_continuous_bell_shaped_and_scales_with_score() -> None:
     assert statistics.stdev(high) / statistics.stdev(low) == pytest.approx(32, rel=0.02)
 
 
+def test_damage_from_contest_uses_normalised_margin_and_a_floor() -> None:
+    profile = resolution.DamageProfile(1.9, 0.12, 0.5, 0.5, 0.35, 1.2)
+    graze = resolution.ContestResult(8, 10.4, 8, 8.01, 8, 0.01)
+    decisive = resolution.ContestResult(8, 10.4, 8, 10.4, 8, 2.4)
+    failed = resolution.ContestResult(8, 10.4, 8, 7.9, 8, -0.1)
+
+    assert resolution.normalised_margin(graze) > 0
+    assert resolution.damage_from_contest(graze, profile) >= 1
+    assert resolution.damage_from_contest(decisive, profile) > resolution.damage_from_contest(graze, profile)
+    assert resolution.damage_from_contest(failed, profile) == 0
+
+
 def test_heal_effect_scales_with_an_attribute_and_does_not_overheal() -> None:
     component = resolution.EffectComponent(
         kind="heal",
