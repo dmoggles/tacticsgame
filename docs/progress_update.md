@@ -524,3 +524,25 @@ ability outcomes yet:
 
 **Deferred to Step 3:** calling the contest from live ability resolution,
 sub-linear margin-to-magnitude scaling, and the minimum landed-hit floor.
+
+## 2026-07-24 — Phase 3 Patch, Step 1: Scale-invariant Model Comparison (WIP)
+
+Implemented the simulation-only comparison required before replacing the
+Step 2 fixed-noise contest model:
+
+- Added `scripts/sim_contest.py`, which keeps `legacy_3d3` and the proposed
+  continuous score-scaled `scaled_ndx` models runnable side-by-side from the
+  same seed. It covers parity, fixed-ratio scale invariance, realistic
+  synthesized hero distributions, and `N` sensitivity.
+- The comparison confirms the patch's headline invariant: under the scaled
+  model, a fixed attack/defence ratio retains the same success chance from
+  scores 2 through 64, while the legacy model becomes deterministic as scores
+  rise. At parity, scaled contests are approximately 50% with no exact ties;
+  legacy contests are approximately 40% with approximately 19% ties.
+- Recorded methodology, representative results, and the patch-mandated
+  unresolved decisions in `docs/phase3_scale_invariant_comparison.md`.
+
+**Deferred pending explicit decisions:** Basic Strike's Resolve term, the
+long-term HP attribute formula, and whether initiative/"like resists like"
+needs redesign before TTK tuning. Damage-profile/TTK sweeps cannot be tuned
+honestly until those are resolved.
