@@ -26,6 +26,7 @@ RATIOS = (1.5, 2.0, 3.0)
 CAREER_LEVEL_UPS = (0, 5, 20, 50)
 SENSITIVITY_SAMPLES = (1, 2, 3, 5, 10)
 ATTACKER_ADVANTAGE_CANDIDATES = (1.20, 1.25, 1.30, 1.35, 1.40)
+ATTACKER_ADVANTAGE = 1.30
 CLASSLESS_HP_BASE = 12.0
 CLASSLESS_HP_PER_RESOLVE = 0.6
 
@@ -60,10 +61,10 @@ STANDARD = DamageProfile("standard", 0.50, 0.50, 0.35, 1.20)
 ABILITY_MODELS = (
     AbilityModel(
         "Strike", AttributeName.MIGHT,
-        ((AttributeName.MIGHT, 0.8), (AttributeName.RESOLVE, 0.4)), STANDARD, 1.9, 0.12,
+        ((AttributeName.MIGHT, 0.8), (AttributeName.RESOLVE, 0.4)), STANDARD, 4.3, 0.24,
     ),
-    AbilityModel("Bolt", AttributeName.FOCUS, ((AttributeName.FOCUS, 1.0),), SWINGY, 1.9, 0.12),
-    AbilityModel("Shot", AttributeName.AGILITY, ((AttributeName.AGILITY, 1.0),), RELIABLE, 1.9, 0.12),
+    AbilityModel("Bolt", AttributeName.FOCUS, ((AttributeName.FOCUS, 1.0),), SWINGY, 2.85, 0.18),
+    AbilityModel("Shot", AttributeName.AGILITY, ((AttributeName.AGILITY, 1.0),), RELIABLE, 2.85, 0.12),
     AbilityModel(
         "Mend", AttributeName.RESOLVE, ((AttributeName.RESOLVE, 0.5),), RELIABLE, 2.0, 0.50,
         automatic_variance_width=0.25,
@@ -127,6 +128,17 @@ def sweep_ratios(rng: random.Random, trials: int, samples: int) -> list[str]:
             for defence in MAGNITUDES:
                 success, _, _ = _summary(roll, ratio * defence, defence, rng, samples, trials)
                 rows.append(f"| {name} | {ratio:g} | {defence:g} | {success:.2%} |")
+    return rows
+
+
+def sweep_advantaged_ratios(rng: random.Random, trials: int, samples: int) -> list[str]:
+    rows = ["## Sweep 2b — advantaged fixed-ratio invariance", "", "| A/D | D | Success |", "| ---: | ---: | ---: |"]
+    for ratio in RATIOS:
+        for defence in MAGNITUDES:
+            success, _, _ = _summary(
+                scaled_ndx, ATTACKER_ADVANTAGE * ratio * defence, defence, rng, samples, trials
+            )
+            rows.append(f"| {ratio:g} | {defence:g} | {success:.2%} |")
     return rows
 
 
