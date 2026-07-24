@@ -194,6 +194,7 @@ def test_preview_ability_outcome_is_non_mutating_and_samples_expected_outcomes()
     assert preview.expected_healing == 5
     assert preview.expected_damage == 0
     assert len(preview.damage_samples) == config.ABILITY_PREVIEW_SAMPLE_COUNT
+    assert queries.magnitude_range(preview) == (5, 5)
     assert caster.current_hp == 10
     assert target.current_hp == 10
 

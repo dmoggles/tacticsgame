@@ -657,3 +657,18 @@ the full `uv run pytest -q` suite pass (178 tests). The full suite now takes
 roughly two minutes because every AI candidate is sampled; Step 7 should
 benchmark this before larger variance sweeps and consider a lower sample count
 or cached preview if it becomes a practical bottleneck.
+
+### 2026-07-24 — Phase 3 Step 6: Player odds display (WIP)
+
+- The targeting sidebar now shows the engine-owned preview for every legal
+  highlighted target before the player commits: chance to land and the literal
+  sampled min–max damage range. Automatic abilities use the same min–max
+  presentation for healing.
+- Increased the sidebar width from 340 to 480 pixels so target outcome lines
+  fit without clipping at the debug visualizer's default font size.
+- The controller caches previews for the uncommitted selection. This preserves
+  the Step 5 engine as the sole source of odds while avoiding 256 live-effect
+  samples on every visualizer frame.
+
+**Verification:** focused query, player-input, and renderer tests pass (54
+passed), `uv run ty check` passes, and the full test suite passes.

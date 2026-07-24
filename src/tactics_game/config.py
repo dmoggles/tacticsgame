@@ -116,7 +116,9 @@ TELEMETRY_ENABLED = False
 
 # --- Debug visualizer (pygame) ---
 TILE_SIZE_PX = 48
-SIDEBAR_WIDTH_PX = 340
+# The targeting odds panel needs room for a target name, hit chance, and
+# literal outcome range without clipping at the default debug font size.
+SIDEBAR_WIDTH_PX = 480
 AUTO_PLAY_INTERVAL_MS = 800
 CARD_WIDTH_PX = 360
 CARD_HEIGHT_PX = 230

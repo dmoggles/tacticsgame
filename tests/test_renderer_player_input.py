@@ -17,6 +17,7 @@ from tactics_game.models.attributes import AffinityVector, Attributes
 from tactics_game.models.grid import Grid, Position
 from tactics_game.models.hero import Hero
 from tactics_game.visualizer import renderer
+from tactics_game.visualizer.player_input import PlayerTurnController
 
 # Mirrors the Phase 1 SDL_VIDEODRIVER=dummy smoke-test precedent
 # (docs/progress_update.md) — the one layer PlayerTurnController's unit
@@ -118,6 +119,22 @@ def test_skip_move_and_skip_ability_ends_turn_as_a_pass() -> None:
     assert battle.turn_index == 1
     assert battle.last_log is not None
     assert battle.last_log.description == "Actor passes"
+
+
+def test_targeting_sidebar_shows_engine_owned_odds() -> None:
+    battle, actor, enemy = _build_1v1_battle()
+    controller = PlayerTurnController(actor, [actor], [enemy], battle.grid)
+    bolt = next(ability for ability in actor.abilities if ability.name == "Basic Bolt")
+    controller.select_active_hero()
+    controller.skip_move()
+    controller.choose_ability(bolt)
+
+    lines = renderer._target_odds_lines(controller)
+
+    assert len(lines) == 1
+    assert enemy.name in lines[0]
+    assert "land" in lines[0]
+    assert "damage" in lines[0]
 
 
 def test_instant_resolve_key_runs_the_battle_to_completion() -> None:

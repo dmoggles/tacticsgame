@@ -123,6 +123,24 @@ def test_choose_ability_accepts_usable_ability() -> None:
 
     assert controller.choose_ability(strike) is True
     assert controller.pending_ability is strike
+
+
+def test_target_preview_is_cached_and_only_available_while_targeting() -> None:
+    actor = _make_hero("Actor", Position(0, 0))
+    enemy = _make_hero("Enemy", Position(1, 0), is_player_controlled=False)
+    controller = _controller(actor, [actor], [enemy])
+    strike = _ability("Basic Strike", actor)
+
+    assert controller.outcome_preview_for(enemy) is None
+    controller.select_active_hero()
+    controller.skip_move()
+    controller.choose_ability(strike)
+
+    first = controller.outcome_preview_for(enemy)
+    second = controller.outcome_preview_for(enemy)
+    assert first is not None
+    assert second is first
+    assert 0 < first.success_probability <= 1
     assert controller.phase == InputPhase.TARGETING
 
 

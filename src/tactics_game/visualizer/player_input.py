@@ -8,6 +8,7 @@ from ..engine import queries
 from ..engine.turn import AbilityDecision, TurnDecision
 
 if TYPE_CHECKING:
+    from ..engine.queries import AbilityOutcomePreview
     from ..models.ability import Ability
     from ..models.grid import Grid, Position
     from ..models.hero import Hero
@@ -42,6 +43,7 @@ class PlayerTurnController:
     pending_destination: Position | None = field(default=None, init=False)
     pending_ability: Ability | None = field(default=None, init=False)
     pending_ability_decision: AbilityDecision | None = field(default=None, init=False)
+    _preview_cache: dict[int, AbilityOutcomePreview] = field(default_factory=dict, init=False)
 
     def select_active_hero(self) -> bool:
         if self.phase != InputPhase.IDLE:
@@ -69,6 +71,24 @@ class PlayerTurnController:
             self.actor, self.pending_ability, self.effective_position, self.allies, self.enemies
         )
 
+    def outcome_preview_for(self, target: Hero) -> AbilityOutcomePreview | None:
+        """The engine-owned odds for a currently selectable target.
+
+        A player turn cannot mutate battle state before Enter commits it, so a
+        small cache avoids re-sampling the same distribution every render
+        frame while keeping the shown preview tied to the exact action.
+        """
+        if self.phase != InputPhase.TARGETING or self.pending_ability is None:
+            return None
+        if target not in self.valid_targets:
+            return None
+        key = id(target)
+        if key not in self._preview_cache:
+            self._preview_cache[key] = queries.preview_ability_outcome(
+                self.actor, self.pending_ability, target
+            )
+        return self._preview_cache[key]
+
     def choose_destination(self, position: Position) -> bool:
         if self.phase != InputPhase.MOVING or position not in self.reachable_tiles:
             return False
@@ -87,6 +107,7 @@ class PlayerTurnController:
         if self.phase != InputPhase.ACTING or ability not in self.usable_abilities:
             return False
         self.pending_ability = ability
+        self._preview_cache.clear()
         self.phase = InputPhase.TARGETING
         return True
 
@@ -95,6 +116,7 @@ class PlayerTurnController:
             return False
         self.pending_ability = None
         self.pending_ability_decision = None
+        self._preview_cache.clear()
         self.phase = InputPhase.READY
         return True
 
@@ -119,11 +141,13 @@ class PlayerTurnController:
         """
         if self.phase == InputPhase.TARGETING:
             self.pending_ability = None
+            self._preview_cache.clear()
             self.phase = InputPhase.ACTING
         elif self.phase in (InputPhase.ACTING, InputPhase.READY):
             self.pending_destination = None
             self.pending_ability = None
             self.pending_ability_decision = None
+            self._preview_cache.clear()
             self.phase = InputPhase.MOVING
         elif self.phase == InputPhase.MOVING:
             self.phase = InputPhase.IDLE

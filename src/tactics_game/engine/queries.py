@@ -37,6 +37,21 @@ class AbilityOutcomePreview:
     expected_healing: float
     kill_probability: float
     damage_samples: tuple[int, ...]
+    magnitude_samples: tuple[int, ...]
+
+
+def magnitude_range(preview: AbilityOutcomePreview) -> tuple[int, int]:
+    """Return the literal sampled min–max range of landed magnitude.
+
+    Failed attacks are excluded: success chance is already displayed
+    separately, and including zeros would make a high-miss attack read as if
+    it sometimes *lands* for zero damage. Automatic healing uses its sampled
+    healing magnitudes through the same field.
+    """
+    samples = [sample for sample in preview.magnitude_samples if sample > 0]
+    if not samples:
+        return (0, 0)
+    return (min(samples), max(samples))
 
 
 def occupied_positions(actor: Hero, allies: list[Hero], enemies: list[Hero]) -> set[Position]:
@@ -141,4 +156,5 @@ def preview_ability_outcome(caster: Hero, ability: Ability, target: Hero) -> Abi
         expected_healing=fmean(healings),
         kill_probability=sum(damage >= target.current_hp for damage in damages) / len(results),
         damage_samples=damages,
+        magnitude_samples=tuple(max(damage, healing) for damage, healing in zip(damages, healings, strict=True)),
     )

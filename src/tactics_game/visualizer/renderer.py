@@ -3,7 +3,7 @@ from __future__ import annotations
 import pygame
 
 from .. import config
-from ..engine import class_track_library, telemetry
+from ..engine import class_track_library, queries, telemetry
 from ..engine.battle import Battle
 from ..engine.hero_delta import HeroDelta
 from ..engine.session import Session
@@ -332,7 +332,9 @@ def _controller_prompt_lines(battle: Battle, controller: PlayerTurnController | 
         lines.extend(_ability_option_lines(actor, controller))
         return lines
     if controller.phase == InputPhase.TARGETING:
-        return [f"{actor.name}: click a highlighted target, ESC to cancel ability"]
+        lines = [f"{actor.name}: click a highlighted target, ESC to cancel ability", "-- Outcome odds (min-max) --"]
+        lines.extend(_target_odds_lines(controller))
+        return lines
     return [f"{actor.name}: ENTER to end turn, ESC to reconsider"]
 
 
@@ -345,6 +347,26 @@ def _ability_option_lines(hero: Hero, controller: PlayerTurnController) -> list[
         track_label = f" -> {track.value}" if track is not None else ""
         status = "" if ability.name in usable_names else "  [cooldown]"
         lines.append(f"  {index + 1}: {ability.name}{track_label}{status}")
+    return lines
+
+
+def _target_odds_lines(controller: PlayerTurnController) -> list[str]:
+    """Format odds from the engine preview; this UI owns no combat math."""
+    lines = []
+    for target in controller.valid_targets:
+        preview = controller.outcome_preview_for(target)
+        if preview is None:
+            continue
+        low, high = queries.magnitude_range(preview)
+        if preview.expected_damage > 0:
+            lines.append(
+                f"  {target.name}: {preview.success_probability:.0%} land, "
+                f"{low}-{high} damage"
+            )
+        else:
+            lines.append(
+                f"  {target.name}: automatic, {low}-{high} healing"
+            )
     return lines
 
 
