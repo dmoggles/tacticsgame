@@ -585,3 +585,14 @@ honestly until those are resolved.
   parity, 89.92% at a genuine 1.5× attack/defence edge, and 38.35% when
   outmatched 1.5×. This is the selected initial multiplier for the upcoming
   scale-invariance and damage re-derivation work.
+
+### 2026-07-24 — Scale-invariant contest roll ported (WIP)
+
+- Replaced the provisional fixed-width `3d3 - 6` contest primitive with three
+  continuous score-scaled samples per side. `ATTACKER_ADVANTAGE = 1.30` now
+  multiplies every attack score before the contest, for heroes and enemies.
+- The raw attack score remains separately available on `ContestResult`; the
+  advantaged score and continuous rolls are exposed for the next magnitude
+  checkpoint. No live ability effect calls the contest yet.
+- Updated focused distribution/reproducibility tests and verified `uv run ty
+  check` plus `uv run pytest tests/test_resolution.py` (12 passed).

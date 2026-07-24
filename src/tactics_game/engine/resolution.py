@@ -53,9 +53,8 @@ class ContestResult:
     """The fully observable outcome of one attacker-versus-defender roll."""
 
     attack_score: float
+    advantaged_attack_score: float
     defence_score: float
-    attacker_noise: int
-    defender_noise: int
     attacker_roll: float
     defender_roll: float
     margin: float
@@ -95,13 +94,12 @@ def defence_score(defender: Hero, primary_attribute: str) -> float:
     )
 
 
-def roll_contest_noise(rng: random.Random) -> int:
-    """One centered bell-shaped noise roll configured as a sum of equal dice."""
-    dice_total = sum(
-        rng.randint(1, config.CONTEST_DIE_FACES) for _ in range(config.CONTEST_DICE_COUNT)
+def roll_contest_score(score: float, rng: random.Random) -> float:
+    """A continuous, bell-shaped roll whose width scales with ``score``."""
+    return sum(
+        rng.random() * score / config.CONTEST_ROLL_SAMPLE_COUNT
+        for _ in range(config.CONTEST_ROLL_SAMPLE_COUNT)
     )
-    center = config.CONTEST_DICE_COUNT * (config.CONTEST_DIE_FACES + 1) // 2
-    return dice_total - center
 
 
 def resolve_contest(
@@ -109,18 +107,16 @@ def resolve_contest(
 ) -> ContestResult:
     """Resolve one pure contested roll for an offensive effect component."""
     attack_score = weighted_attribute_score(attacker, scaling)
+    advantaged_attack_score = attack_score * config.ATTACKER_ADVANTAGE
     primary_attribute = primary_attack_attribute(scaling)
     defender_score = defence_score(defender, primary_attribute)
-    attacker_noise = roll_contest_noise(rng)
-    defender_noise = roll_contest_noise(rng)
-    attacker_roll = attack_score + attacker_noise
-    defender_roll = defender_score + defender_noise
-    margin = round(attacker_roll - defender_roll, config.CONTEST_MARGIN_DECIMAL_PLACES)
+    attacker_roll = roll_contest_score(advantaged_attack_score, rng)
+    defender_roll = roll_contest_score(defender_score, rng)
+    margin = attacker_roll - defender_roll
     return ContestResult(
         attack_score=attack_score,
+        advantaged_attack_score=advantaged_attack_score,
         defence_score=defender_score,
-        attacker_noise=attacker_noise,
-        defender_noise=defender_noise,
         attacker_roll=attacker_roll,
         defender_roll=defender_roll,
         margin=margin,

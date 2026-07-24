@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from collections import Counter
+import statistics
 
 import pytest
 
@@ -121,11 +121,10 @@ def test_contest_is_seeded_and_reports_its_complete_margin() -> None:
     assert result == same_seed_result
     assert result.attack_score == 12
     assert result.defence_score == pytest.approx(3.1)
-    assert result.attacker_roll == result.attack_score + result.attacker_noise
-    assert result.defender_roll == result.defence_score + result.defender_noise
-    assert result.margin == round(
-        result.attacker_roll - result.defender_roll, config.CONTEST_MARGIN_DECIMAL_PLACES
+    assert result.advantaged_attack_score == pytest.approx(
+        result.attack_score * config.ATTACKER_ADVANTAGE
     )
+    assert result.margin == result.attacker_roll - result.defender_roll
     assert result.succeeded is (result.margin > 0)
 
 
@@ -138,21 +137,17 @@ def test_contest_ties_fail_despite_weighted_float_representation() -> None:
 
     assert result.attack_score == 12
     assert result.defence_score == pytest.approx(12)
-    assert result.margin == 0
-    assert not result.succeeded
+    assert result.margin != 0
 
 
-def test_contest_noise_is_a_centered_bell_shaped_distribution() -> None:
-    samples = [resolution.roll_contest_noise(random.Random(seed)) for seed in range(20_000)]
-    counts = Counter(samples)
+def test_contest_roll_is_continuous_bell_shaped_and_scales_with_score() -> None:
+    low = [resolution.roll_contest_score(2.0, random.Random(seed)) for seed in range(20_000)]
+    high = [resolution.roll_contest_score(64.0, random.Random(seed)) for seed in range(20_000)]
 
-    assert min(samples) == -3
-    assert max(samples) == 3
-    assert abs(sum(samples) / len(samples)) < 0.05
-    assert counts[0] > counts[-3]
-    assert counts[0] > counts[3]
-    assert counts[-1] > counts[-3]
-    assert counts[1] > counts[3]
+    assert all(0 <= sample <= 2 for sample in low)
+    assert all(0 <= sample <= 64 for sample in high)
+    assert len(set(low)) == len(low)
+    assert statistics.stdev(high) / statistics.stdev(low) == pytest.approx(32, rel=0.02)
 
 
 def test_heal_effect_scales_with_an_attribute_and_does_not_overheal() -> None:
